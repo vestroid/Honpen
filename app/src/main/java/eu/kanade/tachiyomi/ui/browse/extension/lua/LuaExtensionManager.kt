@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.browse.extension.lua
 
+import android.util.Base64
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -9,6 +10,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
 import org.json.JSONArray
 import org.json.JSONObject
+import org.jsoup.Jsoup
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaTable
@@ -64,9 +66,45 @@ class LuaExtensionManager {
         
         globals.set("tableToJson", object : OneArgFunction() {
             override fun call(arg: LuaValue): LuaValue {
-                if (!arg.istable()) return LuaValue.valueOf("{}")
-                // Simplified serialization
-                return LuaValue.valueOf(luaTableToJsonObject(arg.checktable()).toString())
+                return LuaValue.valueOf(tableToJsonString(arg))
+            }
+        })
+
+        // New Functions
+        globals.set("base64Encode", object : OneArgFunction() {
+            override fun call(arg: LuaValue): LuaValue {
+                return LuaValue.valueOf(Base64.encodeToString(arg.checkjstring().toByteArray(), Base64.NO_WRAP))
+            }
+        })
+
+        globals.set("base64Decode", object : OneArgFunction() {
+            override fun call(arg: LuaValue): LuaValue {
+                return LuaValue.valueOf(String(Base64.decode(arg.checkjstring(), Base64.DEFAULT)))
+            }
+        })
+
+        globals.set("jsoupParse", object : OneArgFunction() {
+            override fun call(arg: LuaValue): LuaValue {
+                val doc = Jsoup.parse(arg.checkjstring())
+                val table = LuaTable()
+                table.set("select", object : TwoArgFunction() {
+                    override fun call(arg1: LuaValue, arg2: LuaValue): LuaValue {
+                        val elements = doc.select(arg2.checkjstring())
+                        val elementsTable = LuaTable()
+                        for (i in 0 until elements.size) {
+                            val el = elements[i]
+                            val elTable = LuaTable()
+                            elTable.set("text", el.text())
+                            elTable.set("html", el.html())
+                            elTable.set("attr", object : OneArgFunction() {
+                                override fun call(a: LuaValue): LuaValue = LuaValue.valueOf(el.attr(a.checkjstring()))
+                            })
+                            elementsTable.set(i + 1, elTable)
+                        }
+                        return elementsTable
+                    }
+                })
+                return table
             }
         })
     }
@@ -111,7 +149,6 @@ class LuaExtensionManager {
         for (i in 1..table.length()) {
             if (table.get(i).isnil()) return false
         }
-        // Also check if there are other non-integer keys
         return keys.size == table.length()
     }
 

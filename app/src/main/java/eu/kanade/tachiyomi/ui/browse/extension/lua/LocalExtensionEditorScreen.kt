@@ -84,6 +84,18 @@ function SOURCE:getTextContent(chapterUrl)
 end
 """.trimIndent()
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FormatListNumbered
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import eu.kanade.tachiyomi.ui.browse.extension.lua.editor.LuaSyntaxHighlighter
+import java.io.File
+
 class LocalExtensionEditorScreen(private val filePath: String?) : Screen {
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -94,18 +106,41 @@ class LocalExtensionEditorScreen(private val filePath: String?) : Screen {
         
         var name by remember { mutableStateOf(if (filePath != null) File(filePath).nameWithoutExtension else "NewExtension") }
         var code by remember { mutableStateOf(if (filePath != null) File(filePath).readText() else STUB_LUA_CODE) }
+        var showLineNumbers by remember { mutableStateOf(true) }
 
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text("Local Extension") },
                     actions = {
+                        IconButton(onClick = { showLineNumbers = !showLineNumbers }) {
+                            Icon(Icons.Outlined.FormatListNumbered, contentDescription = "Toggle Line Numbers")
+                        }
                         IconButton(onClick = { navigator.push(LocalExtensionDocScreen()) }) {
                             Icon(Icons.Outlined.HelpOutline, contentDescription = "Documentation")
                         }
+                        if (filePath != null) {
+                            IconButton(onClick = {
+                                File(filePath).delete()
+                                navigator.pop()
+                            }) {
+                                Icon(Icons.Outlined.Delete, contentDescription = "Delete")
+                            }
+                        }
                         IconButton(onClick = {
                             val scriptsDir = File(context.filesDir, "lua_extensions").apply { mkdirs() }
-                            val targetFile = if (filePath != null) File(filePath) else File(scriptsDir, "${name.replace(" ", "_")}.lua")
+                            val targetFile = if (filePath != null) {
+                                val oldFile = File(filePath)
+                                if (oldFile.nameWithoutExtension != name) {
+                                    val newFile = File(oldFile.parentFile, "${name.replace(" ", "_")}.lua")
+                                    oldFile.renameTo(newFile)
+                                    newFile
+                                } else {
+                                    oldFile
+                                }
+                            } else {
+                                File(scriptsDir, "${name.replace(" ", "_")}.lua")
+                            }
                             targetFile.writeText(code)
                             navigator.pop()
                         }) {
@@ -122,12 +157,41 @@ class LocalExtensionEditorScreen(private val filePath: String?) : Screen {
                     label = { Text("Extension Name") },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 )
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it },
-                    modifier = Modifier.fillMaxSize(),
-                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace)
-                )
+                
+                Row(modifier = Modifier.fillMaxSize()) {
+                    if (showLineNumbers) {
+                        val lineCount = code.lines().size
+                        val lineNumbers = (1..lineCount).joinToString("\n")
+                        Text(
+                            text = lineNumbers,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(40.dp)
+                                .padding(top = 16.dp, end = 8.dp),
+                            textAlign = TextAlign.End,
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                color = Color.Gray,
+                                fontSize = androidx.compose.ui.unit.TextUnit.Unspecified
+                            )
+                        )
+                    }
+
+                    TextField(
+                        value = code,
+                        onValueChange = { code = it },
+                        modifier = Modifier.fillMaxSize(),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace),
+                        visualTransformation = LuaSyntaxHighlighter(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+                    )
+                }
             }
         }
     }
