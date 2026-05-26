@@ -1,4 +1,4 @@
-name: Build Honpen APK
+name: Build Honpen APK 2
 
 on:
   push:
