@@ -12,8 +12,17 @@ internal class EpubPageLoader(private val reader: EpubReader) : PageLoader() {
     override var isLocal: Boolean = true
 
     override suspend fun getPages(): List<ReaderPage> {
+        val textPages = reader.getTextFromPages()
+        if (textPages.any { it.isNotBlank() }) {
+            return textPages.mapIndexed { i, text ->
+                ReaderPage(index = i, text = text).apply {
+                    status = Page.State.Ready
+                }
+            }
+        }
+
         return reader.getImagesFromPages().mapIndexed { i, path ->
-            ReaderPage(i).apply {
+            ReaderPage(index = i).apply {
                 stream = { reader.getInputStream(path)!! }
                 status = Page.State.Ready
             }

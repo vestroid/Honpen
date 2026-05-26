@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Lithium · Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+/* ── VARIABLES ────────────────────────────── */
+:root{
+  --bg:#181818;--surface:#222;--surface2:#2c2c2c;
+  --text:#d4d4d4;--text-dim:#666;--text-muted:#444;
+  --accent:#f5a623;--accent-bg:rgba(245,166,35,.14);
+  --border:#2c2c2c;--bar:#1a1a1a;
+  --fs:18px;--lh:1.85;--ps:1.1em;
+}
+[data-theme=sepia]{
+  --bg:#f5ead5;--surface:#ede0c4;--surface2:#e5d6b8;
+  --text:#3a2e1e;--text-dim:#8a7a65;--text-muted:#c0b09a;
+  --accent:#a05a28;--accent-bg:rgba(160,90,40,.12);
+  --border:#d8cbb0;--bar:#ede0c4;
+}
+[data-theme=light]{
+  --bg:#f9f9f9;--surface:#f0f0f0;--surface2:#e8e8e8;
+  --text:#1a1a1a;--text-dim:#888;--text-muted:#ccc;
+  --accent:#2563eb;--accent-bg:rgba(37,99,235,.1);
+  --border:#e0e0e0;--bar:#f4f4f4;
+}
+
+/* ── RESET ───────────────────────────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
+
+/* ── READER ──────────────────────────────── */
+#reader{position:relative;width:100%;height:100%;overflow:hidden;background:var(--bg);transition:background .3s,color .3s}
+
+/* ── TOP BAR ─────────────────────────────── */
+#topbar{
+  position:absolute;top:0;left:0;right:0;height:60px;
+  display:flex;align-items:center;padding:0 6px;
+  background:var(--bar);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);z-index:100;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .25s,background .3s,border-color .3s;
+}
+#topbar.hidden{transform:translateY(-100%);opacity:0;pointer-events:none}
+#title-wrap{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;padding:0 4px;gap:2px}
+#book-title{font-size:10px;font-weight:400;letter-spacing:.04em;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;transition:color .3s}
+#chapter-title{font-size:12.5px;font-weight:500;letter-spacing:.01em;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;transition:color .3s}
+.tb-btn{
+  width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--text);border-radius:9px;cursor:pointer;flex-shrink:0;
+  transition:background .15s,color .15s;
+}
+.tb-btn:hover{background:rgba(128,128,128,.13)}
+.tb-btn.active{color:var(--accent)}
+.tb-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── CONTENT AREA ────────────────────────── */
+#content-area{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  overflow:hidden;background:var(--bg);
+  transition:background .3s;
+}
+/* SCROLL MODE */
+#content-area.scroll-mode{overflow-y:auto;overflow-x:hidden}
+#content-area.scroll-mode::-webkit-scrollbar{width:3px}
+#content-area.scroll-mode::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+#scroll-wrap{padding:74px 30px 88px;max-width:700px;margin:0 auto}
+
+/* PAGES */
+.page{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  padding:68px 30px 76px;overflow:hidden;
+  background:var(--bg);
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  will-change:transform;
+}
+.page.active{transform:translateX(0);z-index:2}
+.page.slide-left{transform:translateX(-100%);z-index:1}
+.page.slide-right{transform:translateX(100%);z-index:1}
+/* scroll mode chapter sections */
+.scroll-chapter{padding-bottom:32px}
+.scroll-chapter:first-child .scroll-ch-header{padding-top:72px;border-top:none}
+.scroll-ch-header{
+  display:flex;align-items:center;gap:12px;
+  padding:40px 0 22px;
+  border-top:1px solid var(--border);
+  margin-bottom:4px;
+  transition:border-color .3s,color .3s;
+}
+.scroll-ch-header::before,.scroll-ch-header::after{content:'';flex:1;height:1px;background:var(--border);transition:background .3s}
+.scroll-ch-header span{
+  font-size:10px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--text-dim);
+  white-space:nowrap;flex-shrink:0;
+}
+
+.page-header{
+  font-size:9.5px;font-weight:400;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--text-dim);
+  margin-bottom:16px;transition:color .3s;
+}
+.page-body,.scroll-wrap-body{
+  font-family:'Lora',Georgia,serif;
+  font-size:var(--fs);line-height:var(--lh);color:var(--text);
+  transition:color .3s,font-size .2s,line-height .2s;
+}
+.page-body{flex:1;overflow:hidden;user-select:text}
+.page-body p,.scroll-wrap-body p{margin-bottom:var(--ps);text-align:justify}
+.page-body.no-hyphens p,.scroll-wrap-body.no-hyphens p{hyphens:none;word-break:normal}
+.page-body.hyphens p,.scroll-wrap-body.hyphens p{hyphens:auto}
+.page-body.dropcap p:first-child::first-letter,.scroll-wrap-body.dropcap p:first-child::first-letter{
+  font-size:3.4em;line-height:.82;float:left;margin-right:.07em;margin-top:.04em;
+  font-weight:600;color:var(--accent);
+}
+mark.hl{background:transparent;color:inherit;border-radius:2px}
+mark.hl-y{background:rgba(245,166,35,.28);border-bottom:2px solid #f5a623}
+mark.hl-b{background:rgba(59,130,246,.22);border-bottom:2px solid #3b82f6}
+mark.hl-g{background:rgba(34,197,94,.2);border-bottom:2px solid #22c55e}
+mark.hl-p{background:rgba(236,72,153,.2);border-bottom:2px solid #ec4899}
+
+/* ── TAP ZONES ───────────────────────────── */
+#tap-zones{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;z-index:10;pointer-events:none}
+#tap-zones.enabled{pointer-events:auto}
+.tz{height:100%;cursor:pointer}
+#tz-left,#tz-right{width:24%}
+#tz-mid{flex:1}
+
+/* ── BOTTOM BAR ──────────────────────────── */
+#bottombar{
+  position:absolute;bottom:0;left:0;right:0;height:64px;
+  display:flex;flex-direction:column;justify-content:center;padding:0 14px;
+  background:var(--bar);backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);z-index:100;gap:5px;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .25s,background .3s,border-color .3s;
+}
+#bottombar.hidden{transform:translateY(100%);opacity:0;pointer-events:none}
+.bar-row{display:flex;align-items:center;gap:8px}
+.bar-center{justify-content:center}
+#progress-slider{
+  flex:1;-webkit-appearance:none;appearance:none;
+  height:2.5px;border-radius:2px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,var(--accent) 0%,var(--accent) 0%,var(--border) 0%,var(--border) 100%);
+  transition:background .1s;
+}
+#progress-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--accent);cursor:pointer;
+  box-shadow:0 0 0 3px var(--accent-bg);
+}
+#progress-slider::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:var(--accent);border:none;
+}
+.ch-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--text-dim);cursor:pointer;border-radius:7px;
+  transition:color .15s,background .15s;
+}
+.ch-btn:hover{color:var(--text);background:rgba(128,128,128,.1)}
+.ch-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#page-count{font-size:11px;color:var(--text-dim);min-width:70px;text-align:center;letter-spacing:.02em}
+
+/* ── OVERLAY ─────────────────────────────── */
+#overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.44);z-index:150;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+#overlay.on{opacity:1;pointer-events:auto}
+
+/* ── PANEL BASE ──────────────────────────── */
+.panel-right{
+  position:absolute;top:0;right:0;bottom:0;width:330px;max-width:90%;
+  background:var(--surface);border-left:1px solid var(--border);
+  z-index:200;display:flex;flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .32s cubic-bezier(.4,0,.2,1),background .3s,border-color .3s;
+}
+.panel-right.open{transform:translateX(0)}
+.panel-left{
+  position:absolute;top:0;left:0;bottom:0;width:270px;max-width:88%;
+  background:var(--surface);border-right:1px solid var(--border);
+  z-index:200;display:flex;flex-direction:column;
+  transform:translateX(-100%);
+  transition:transform .32s cubic-bezier(.4,0,.2,1),background .3s,border-color .3s;
+}
+.panel-left.open{transform:translateX(0)}
+.panel-bottom{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--surface);border-radius:20px 20px 0 0;border-top:1px solid var(--border);
+  z-index:200;padding:14px 22px 36px;
+  transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.4,0,.2,1),background .3s,border-color .3s;
+}
+.panel-bottom.open{transform:translateY(0)}
+.panel-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
+  transition:border-color .3s;
+}
+.panel-hd h3{font-size:14.5px;font-weight:500;letter-spacing:.01em}
+.x-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--text-dim);cursor:pointer;border-radius:7px;
+  transition:color .15s,background .15s;
+}
+.x-btn:hover{color:var(--text);background:rgba(128,128,128,.1)}
+.x-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* ── SETTINGS PANEL ──────────────────────── */
+.drag-handle{width:34px;height:3px;border-radius:2px;background:var(--border);margin:0 auto 16px;transition:background .3s}
+.s-title{font-size:10.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:16px}
+.s-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}
+.s-label{font-size:13.5px;color:var(--text)}
+.s-ctrl{display:flex;align-items:center;gap:7px}
+.theme-dot{
+  width:24px;height:24px;border-radius:50%;border:2px solid transparent;
+  cursor:pointer;transition:transform .15s,border-color .15s;
+}
+.theme-dot:hover{transform:scale(1.12)}
+.theme-dot.active{border-color:var(--accent)}
+.td{background:#181818;box-shadow:inset 0 0 0 1px #444}
+.ts{background:#f5ead5;box-shadow:inset 0 0 0 1px #c0b09a}
+.tl{background:#f9f9f9;box-shadow:inset 0 0 0 1px #ccc}
+.sz-btn{
+  width:30px;height:30px;border:1px solid var(--border);background:none;color:var(--text);
+  border-radius:7px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;
+  display:flex;align-items:center;justify-content:center;transition:background .15s;
+}
+.sz-btn:hover{background:rgba(128,128,128,.1)}
+#fs-disp{font-size:13px;color:var(--text);min-width:24px;text-align:center}
+.s-slider{
+  -webkit-appearance:none;appearance:none;width:120px;height:2.5px;
+  border-radius:2px;background:var(--border);outline:none;cursor:pointer;transition:background .3s;
+}
+.s-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;
+}
+.font-pill{
+  padding:4px 10px;border:1px solid var(--border);border-radius:6px;
+  background:none;color:var(--text-dim);cursor:pointer;font-size:12px;
+  transition:all .15s;
+}
+.font-pill:hover{color:var(--text)}
+.font-pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.font-pill.serif{font-family:'Lora',serif}
+.font-pill.sans{font-family:'DM Sans',sans-serif}
+.font-pill.geo{font-family:'Georgia',serif}
+.s-toggle{display:flex;align-items:center;gap:8px;cursor:pointer}
+.tog{
+  width:36px;height:20px;border-radius:10px;background:var(--text-muted);
+  position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0;
+}
+.tog.on{background:var(--accent)}
+.tog::after{
+  content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;
+  border-radius:50%;background:#fff;transition:transform .2s;
+}
+.tog.on::after{transform:translateX(16px)}
+.s-divider{height:1px;background:var(--border);margin:12px 0;transition:background .3s}
+.s-mode-group{display:flex;gap:8px}
+.mode-btn{
+  flex:1;padding:6px 0;border:1px solid var(--border);border-radius:8px;
+  background:none;color:var(--text-dim);font-size:12px;font-family:'DM Sans',sans-serif;
+  cursor:pointer;transition:all .15s;
+}
+.mode-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+
+/* ── COMMENTS PANEL ──────────────────────── */
+.comment-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;transition:border-color .3s}
+.ctab{
+  flex:1;padding:10px;font-size:12px;font-weight:500;color:var(--text-dim);
+  background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:color .15s,border-color .15s;
+}
+.ctab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.cmt-scroll{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.cmt-scroll::-webkit-scrollbar{width:3px}
+.cmt-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.cmt-write{display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0;transition:border-color .3s}
+.cmt-avatar{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;color:#fff;
+}
+.cmt-input{
+  flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:8px 11px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;
+  resize:none;outline:none;min-height:36px;max-height:90px;line-height:1.4;
+  transition:background .3s,border-color .3s,color .3s;
+}
+.cmt-input::placeholder{color:var(--text-dim)}
+.cmt-input:focus{border-color:var(--accent)}
+.send-btn{
+  width:32px;height:32px;border-radius:9px;background:var(--accent);
+  border:none;color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:opacity .15s;
+}
+.send-btn:hover{opacity:.85}
+.send-btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+/* Social comment card */
+.sc-card{display:flex;gap:9px}
+.sc-body{flex:1;min-width:0}
+.sc-meta{display:flex;align-items:baseline;gap:6px;margin-bottom:3px}
+.sc-user{font-size:12px;font-weight:500;color:var(--text)}
+.sc-time{font-size:10.5px;color:var(--text-dim)}
+.sc-loc{font-size:10px;color:var(--accent);letter-spacing:.05em;font-weight:500}
+.sc-text{font-size:13px;color:var(--text);line-height:1.5;margin-bottom:5px;word-break:break-word}
+.sc-actions{display:flex;align-items:center;gap:12px}
+.sc-act{
+  display:flex;align-items:center;gap:4px;background:none;border:none;
+  color:var(--text-dim);font-size:11.5px;cursor:pointer;
+  padding:3px;border-radius:5px;font-family:'DM Sans',sans-serif;
+  transition:color .15s,background .15s;
+}
+.sc-act:hover{color:var(--text);background:rgba(128,128,128,.08)}
+.sc-act.liked{color:var(--accent)}
+.sc-act svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sc-replies{margin-top:8px;padding-left:12px;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:8px;transition:border-color .3s}
+.sc-reply-input{display:flex;gap:6px;align-items:flex-end;margin-top:6px}
+/* Notes tab */
+.note-card{background:var(--surface2);border-radius:9px;padding:10px 12px;border:1px solid var(--border);transition:background .3s,border-color .3s}
+.note-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.note-loc{font-size:10px;color:var(--accent);font-weight:500;letter-spacing:.05em;text-transform:uppercase}
+.note-time{font-size:10px;color:var(--text-dim)}
+.note-text{font-size:13px;color:var(--text);line-height:1.5;word-break:break-word}
+.note-del{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px;border-radius:4px;font-size:12px;transition:color .15s}
+.note-del:hover{color:#ef4444}
+/* Highlight card */
+.hl-card{border-radius:9px;padding:10px 12px;border:1px solid var(--border)}
+.hl-bar{width:3px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:24px}
+.hl-row{display:flex;gap:8px}
+.hl-y .hl-bar{background:#f5a623}
+.hl-b .hl-bar{background:#3b82f6}
+.hl-g .hl-bar{background:#22c55e}
+.hl-p .hl-bar{background:#ec4899}
+.hl-excerpt{font-size:12.5px;color:var(--text);font-family:'Lora',Georgia,serif;font-style:italic;line-height:1.5;word-break:break-word}
+.empty-state{text-align:center;color:var(--text-dim);font-size:13px;padding:48px 16px;line-height:1.7}
+.empty-state svg{width:28px;height:28px;margin:0 auto 12px;display:block;stroke:var(--text-dim);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.45}
+
+/* ── TOC PANEL ───────────────────────────── */
+.toc-list{flex:1;overflow-y:auto;padding:6px 0}
+.toc-list::-webkit-scrollbar{width:3px}
+.toc-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.toc-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  font-size:13.5px;color:var(--text);cursor:pointer;
+  border-left:3px solid transparent;transition:all .15s;
+}
+.toc-item:hover{background:rgba(128,128,128,.07)}
+.toc-item.active{color:var(--accent);border-left-color:var(--accent);background:var(--accent-bg)}
+.toc-num{font-size:10px;color:var(--text-dim);min-width:18px;font-variant-numeric:tabular-nums}
+.toc-foot{padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;transition:border-color .3s}
+.toc-book{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px}
+.toc-author{font-size:11px;color:var(--text-dim);letter-spacing:.02em}
+
+/* ── SELECTION TOOLBAR ───────────────────── */
+#sel-bar{
+  position:absolute;z-index:500;
+  display:flex;align-items:center;gap:2px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:5px 7px;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+  opacity:0;pointer-events:none;
+  transition:opacity .15s,transform .15s;
+  transform:translateY(4px);
+}
+#sel-bar.on{opacity:1;pointer-events:auto;transform:translateY(0)}
+.hl-dot{
+  width:22px;height:22px;border-radius:50%;border:2px solid transparent;
+  cursor:pointer;transition:transform .15s,border-color .15s;
+}
+.hl-dot:hover{transform:scale(1.15)}
+.hl-dot.hd-y{background:rgba(245,166,35,.8);border-color:#f5a623}
+.hl-dot.hd-b{background:rgba(59,130,246,.8);border-color:#3b82f6}
+.hl-dot.hd-g{background:rgba(34,197,94,.8);border-color:#22c55e}
+.hl-dot.hd-p{background:rgba(236,72,153,.8);border-color:#ec4899}
+.sel-div{width:1px;height:20px;background:var(--border);margin:0 4px;flex-shrink:0}
+.sel-btn{
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--text-dim);cursor:pointer;border-radius:7px;
+  transition:background .15s,color .15s;
+}
+.sel-btn:hover{background:rgba(128,128,128,.12);color:var(--text)}
+.sel-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── DICTIONARY MODAL ────────────────────── */
+#dict-modal{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);
+  width:300px;max-width:88%;background:var(--surface);
+  border-radius:16px;border:1px solid var(--border);
+  z-index:600;padding:0;overflow:hidden;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s,background .3s,border-color .3s;
+}
+#dict-modal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.dict-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--border);transition:border-color .3s;
+}
+.dict-word{font-size:18px;font-weight:600;color:var(--text);font-family:'Lora',serif}
+.dict-pron{font-size:11.5px;color:var(--text-dim);margin-top:1px}
+.dict-body{padding:14px 16px;max-height:260px;overflow-y:auto}
+.dict-pos{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.dict-def{font-size:13.5px;color:var(--text);line-height:1.6;margin-bottom:8px}
+.dict-def span{font-size:12px;color:var(--text-dim);font-style:italic}
+.dict-err{font-size:13px;color:var(--text-dim);text-align:center;padding:24px 0}
+.dict-loading{display:flex;justify-content:center;padding:24px;color:var(--text-dim);font-size:13px}
+
+/* ── TOAST ───────────────────────────────── */
+#toast{
+  position:absolute;top:64px;left:50%;
+  transform:translateX(-50%) translateY(-4px);
+  background:rgba(8,8,8,.8);color:#fff;
+  padding:6px 14px;border-radius:20px;
+  font-size:11.5px;letter-spacing:.02em;
+  opacity:0;pointer-events:none;white-space:nowrap;
+  backdrop-filter:blur(10px);
+  transition:opacity .16s,transform .16s;z-index:700;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="reader" data-theme="dark">
+
+<!-- OVERLAY -->
+<div id="overlay"></div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <button class="tb-btn" id="btn-toc" title="Contents">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="16" y2="12"/><line x1="3" y1="18" x2="19" y2="18"/></svg>
+  </button>
+  <div id="title-wrap">
+    <div id="book-title">Pride and Prejudice</div>
+    <div id="chapter-title">Chapter I</div>
+  </div>
+  <button class="tb-btn" id="btn-social" title="Community Comments">
+    <svg viewBox="0 0 24 24"><path d="M17 8h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v4l-4-4H9a2 2 0 0 1-2-2v-1"/><path d="M3 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2v4l4-4h6a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/></svg>
+  </button>
+  <button class="tb-btn" id="btn-notes" title="Notes &amp; Highlights">
+    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  </button>
+  <button class="tb-btn" id="btn-bm" title="Bookmark">
+    <svg viewBox="0 0 24 24"><path id="bm-path" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <button class="tb-btn" id="btn-settings" title="Appearance">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</div>
+
+<!-- CONTENT AREA -->
+<div id="content-area"></div>
+
+<!-- TAP ZONES -->
+<div id="tap-zones">
+  <div class="tz" id="tz-left"></div>
+  <div class="tz" id="tz-mid"></div>
+  <div class="tz" id="tz-right"></div>
+</div>
+
+<!-- SELECTION TOOLBAR -->
+<div id="sel-bar">
+  <button class="hl-dot hd-y" data-hlcolor="y" title="Highlight yellow"></button>
+  <button class="hl-dot hd-b" data-hlcolor="b" title="Highlight blue"></button>
+  <button class="hl-dot hd-g" data-hlcolor="g" title="Highlight green"></button>
+  <button class="hl-dot hd-p" data-hlcolor="p" title="Highlight pink"></button>
+  <div class="sel-div"></div>
+  <button class="sel-btn" id="sel-copy" title="Copy">
+    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+  </button>
+  <button class="sel-btn" id="sel-note" title="Add Note">
+    <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  </button>
+  <button class="sel-btn" id="sel-dict" title="Dictionary">
+    <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+  </button>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottombar">
+  <div class="bar-row">
+    <button class="ch-btn" id="btn-prev-ch" title="Prev Chapter">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <input type="range" id="progress-slider" min="0" max="100" value="0">
+    <button class="ch-btn" id="btn-next-ch" title="Next Chapter">
+      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+  <div class="bar-row bar-center">
+    <span id="page-count">Page 1 of 12</span>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-panel" class="panel-bottom">
+  <div class="drag-handle"></div>
+  <div class="s-title">Appearance &amp; Reading</div>
+
+  <div class="s-row">
+    <span class="s-label">Theme</span>
+    <div class="s-ctrl" style="gap:9px">
+      <button class="theme-dot td active" data-theme="dark" title="Dark"></button>
+      <button class="theme-dot ts" data-theme="sepia" title="Sepia"></button>
+      <button class="theme-dot tl" data-theme="light" title="Light"></button>
+    </div>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Font Size</span>
+    <div class="s-ctrl">
+      <button class="sz-btn" id="fs-down">A−</button>
+      <span id="fs-disp">18</span>
+      <button class="sz-btn" id="fs-up">A+</button>
+    </div>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Line Spacing</span>
+    <div class="s-ctrl">
+      <input type="range" class="s-slider" id="lh-slider" min="130" max="240" value="185">
+    </div>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Paragraph Spacing</span>
+    <div class="s-ctrl">
+      <input type="range" class="s-slider" id="ps-slider" min="30" max="250" value="110">
+    </div>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Typeface</span>
+    <div class="s-ctrl" style="gap:5px">
+      <button class="font-pill serif active" data-font="Lora">Serif</button>
+      <button class="font-pill sans" data-font="DM Sans">Sans</button>
+      <button class="font-pill geo" data-font="Georgia">Georgia</button>
+    </div>
+  </div>
+
+  <div class="s-divider"></div>
+
+  <div class="s-row">
+    <span class="s-label">Reading Mode</span>
+    <div class="s-mode-group">
+      <button class="mode-btn active" id="mode-page">Pages</button>
+      <button class="mode-btn" id="mode-scroll">Scroll</button>
+    </div>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Hyphenation</span>
+    <button class="tog" id="tog-hyph" title="Toggle hyphenation"></button>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Drop Cap</span>
+    <button class="tog on" id="tog-dropcap" title="Toggle drop cap"></button>
+  </div>
+
+  <div class="s-row">
+    <span class="s-label">Tap to Navigate</span>
+    <button class="tog on" id="tog-controls" title="Toggle tap controls"></button>
+  </div>
+</div>
+
+<!-- SOCIAL COMMENTS PANEL -->
+<div id="social-panel" class="panel-right">
+  <div class="panel-hd">
+    <h3>Community</h3>
+    <button class="x-btn" id="close-social">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="comment-tabs">
+    <button class="ctab active" id="ctab-all">All</button>
+    <button class="ctab" id="ctab-ch">This Chapter</button>
+  </div>
+  <div class="cmt-scroll" id="social-list"></div>
+  <div class="cmt-write">
+    <div class="cmt-avatar" id="my-avatar" style="background:#6366f1">Y</div>
+    <textarea class="cmt-input" id="social-input" placeholder="Share your thoughts…" rows="1"></textarea>
+    <button class="send-btn" id="social-send">
+      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- NOTES & HIGHLIGHTS PANEL -->
+<div id="notes-panel" class="panel-right">
+  <div class="panel-hd">
+    <h3>Notes &amp; Highlights</h3>
+    <button class="x-btn" id="close-notes">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="comment-tabs">
+    <button class="ctab active" id="ntab-notes">Notes</button>
+    <button class="ctab" id="ntab-hl">Highlights</button>
+  </div>
+  <div class="cmt-scroll" id="notes-list"></div>
+  <div class="cmt-write" id="note-write" style="display:none">
+    <textarea class="cmt-input" id="note-input" placeholder="Add a note for the selected text…" rows="1"></textarea>
+    <button class="send-btn" id="note-send">
+      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- TOC PANEL -->
+<div id="toc-panel" class="panel-left">
+  <div class="panel-hd">
+    <h3>Contents</h3>
+    <button class="x-btn" id="close-toc">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="toc-list" id="toc-list"></div>
+  <div class="toc-foot">
+    <div class="toc-book">Pride and Prejudice</div>
+    <div class="toc-author">Jane Austen · 1813</div>
+  </div>
+</div>
+
+<!-- DICTIONARY MODAL -->
+<div id="dict-modal">
+  <div class="dict-hd">
+    <div>
+      <div class="dict-word" id="dict-word"></div>
+      <div class="dict-pron" id="dict-pron"></div>
+    </div>
+    <button class="x-btn" id="close-dict">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="dict-body" id="dict-body"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  RAW TEXT PROCESSOR — handles scraped/unformatted content
+// ═══════════════════════════════════════════════
+function processRaw(text) {
+  if (!text || !text.trim()) return '<p>(Empty content)</p>';
+
+  // Already has block HTML? sanitize lightly and use
+  if (/<(p|div|br|h[1-6])\b/i.test(text)) {
+    // Strip script/style, keep structure
+    return text
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<(?!\/?(p|em|strong|i|b|br|h[1-6]|span)\b)[^>]+>/gi, '')
+      .replace(/\n{3,}/g, '\n\n');
+  }
+
+  // Plain text: normalize line endings, split on blank lines
+  const paras = text
+    .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    .split(/\n{2,}/)
+    .map(p => p.replace(/\n/g, ' ').trim())
+    .filter(p => p.length > 0);
+
+  if (paras.length === 0) return `<p>${esc(text.trim())}</p>`;
+  return paras.map(p => `<p>${esc(p)}</p>`).join('');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ═══════════════════════════════════════════════
+//  BOOK DATA  (Pride and Prejudice — public domain)
+// ═══════════════════════════════════════════════
+// Each chapter has a rawContent string (simulating scraped text).
+// In real use, swap with actual scraped content and processRaw() handles it.
+
+const BOOK = {
+  title: "Pride and Prejudice",
+  author: "Jane Austen",
+  chapters: [
+    { title: "Chapter I",   rawContent: `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.\n\nHowever little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered as the rightful property of some one or other of their daughters.\n\n"My dear Mr. Bennet," said his lady to him one day, "have you heard that Netherfield Park is let at last?"\n\nMr. Bennet replied that he had not.\n\n"But it is," returned she; "for Mrs. Long has just been here, and she told me all about it."\n\nMr. Bennet made no answer.\n\n"Do you not want to know who has taken it?" cried his wife impatiently.\n\n"You want to tell me, and I have no objection to hearing it."\n\nThis was invitation enough.\n\n"Why, my dear, you must know, Mrs. Long says that Netherfield is taken by a young man of large fortune from the north of England; that he came down on Monday in a chaise and four to see the place, and was so much delighted with it, that he agreed with Mr. Morris immediately; that he is to take possession before Michaelmas, and some of the servants are to be in the house by the end of next week."\n\n"What is his name?"\n\n"Bingley."\n\n"Is he married or single?"\n\n"Oh! single, my dear, to be sure! A single man of large fortune; four or five thousand a year. What a fine thing for our girls!"\n\n"How so? can it affect them?"\n\n"My dear Mr. Bennet," replied his wife, "how can you be so tiresome! You must know that I am thinking of his marrying one of them."\n\n"Is that his design in settling here?"\n\n"Design! Nonsense, how can you talk so! But it is very likely that he may fall in love with one of them, and therefore you must visit him as soon as he comes."` },
+    { title: "Chapter II",  rawContent: `Mr. Bennet was among the earliest of his neighbours in calling upon Mr. Bingley. He had always intended to keep his intended visit a secret, and to the last kept his family in the dark.\n\nFor a long time after it was settled, Mr. Bennet kept silent on the matter, content to see his wife in a state of nervous expectation. It was not till the evening before the intended visit that she was at all apprised of it.\n\n"So, Lizzy," said he one evening, after the family had retired for the night, "I dare say you have heard of the goings-on at Netherfield."\n\n"Oh yes, papa! Mrs. Long has been here and told us everything — or at least everything she knows, which is perhaps not so much."\n\n"Well, you will be glad to hear that I have called upon Mr. Bingley this very morning."\n\nThe astonishment of the ladies was just what it ought to be; and the satisfaction of Mrs. Bennet, upon hearing this news, was expressed in terms as loud and as unequivocal as her joy of the preceding evening.\n\n"What a good joke it was, to be sure! that you should have gone this morning, and never said a word about it till now." "Now, Kitty, you may cough as much as you choose," said Mr. Bennet; and, as he spoke, he left the room, fatigued with the raptures of his wife.\n\n"What an excellent father you have, girls!" said she, when the door was shut. "I do not know how you will ever make him amends for his kindness; or me either, for that matter."\n\nNot all that Mrs. Bennet, however, with the assistance of her five daughters, could ask on the subject, was sufficient to draw from her husband any satisfactory description of Mr. Bingley. They attacked him in various ways; with barefaced questions, ingenious suppositions, and distant surmises; but he eluded the skill of them all.\n\nHer report was highly favourable. Sir William had been delighted with him. He was quite young, wonderfully handsome, extremely agreeable, and to crown the whole, he meant to be at the next assembly with a large party. Nothing could be more delightful! To be fond of dancing was a certain step towards falling in love; and very lively hopes of Mr. Bingley's heart were entertained.` },
+    { title: "Chapter III", rawContent: `Not all that Mrs. Bennet's entreaties could prevail on Mr. Bennet to accompany them to the ball. In the end, however, the whole party set off, and Mrs. Bennet's spirits were on the point of breaking down entirely when they arrived at Netherfield.\n\nMr. Bingley had not been of age two years when he was tempted by an accidental recommendation to look at Netherfield House. He did look at it and into it for half an hour, was pleased with the situation and the principal rooms, satisfied with what the owner said in its praise, and took it immediately.\n\nBetween him and Darcy there was a very steady friendship, in spite of great opposition of character. Bingley had never met with more pleasant people or prettier girls in his life; everybody had been most kind and attentive to him; there had been no formality, no stiffness; he had soon felt acquainted with all the room; and as to Miss Bennet, he could not conceive an angel more beautiful.\n\nDarcy, on the contrary, had seen a collection of people in whom there was little beauty and no fashion, for none of whom he had felt the smallest interest, and from none received either attention or pleasure. Miss Bennet he acknowledged to be pretty, but she smiled too much.\n\nMrs. Bennet had designed to keep the two eldest from Netherfield long enough to ensure their having some share of the pleasures of the evening; and accordingly, when the dancing recommenced after supper, she would not allow her eldest daughter to stand up with Mr. Bingley, though she had not yet had a partner.\n\nMr. Darcy danced only once with Mrs. Hurst and once with Miss Bingley, declined being introduced to any other lady, and spent the rest of the evening in walking about the room, speaking occasionally to one of his own party. His character was decided. He was the proudest, most disagreeable man in the world, and every body hoped that he would never come there again.\n\nAmongst the most violent against him was Mrs. Bennet, whose dislike of his general behaviour was sharpened into particular resentment by his having slighted one of her daughters.\n\nElizabeth Bennet had been obliged, by the scarcity of gentlemen, to sit down for two dances; and during part of that time, Mr. Darcy had been standing near enough for her to hear a conversation between him and Mr. Bingley, who came from the dance for a few minutes to press his friend to join it.\n\n"Come, Darcy," said he, "I must have you dance. I hate to see you standing about by yourself in this stupid manner. You had much better dance."\n\n"I certainly shall not. You know how I detest it, unless I am particularly acquainted with my partner. At such an assembly as this, it would be insupportable. Your sisters are engaged, and there is not another woman in the room whom it would not be a punishment to me to stand up with."\n\n"I would not be so fastidious as you are," cried Bingley, "for a kingdom! Upon my honour, I never met with so many pleasant girls in my life, as I have this evening; and there are several of them you see uncommonly pretty."\n\n"You are dancing with the only handsome girl in the room," said Mr. Darcy, looking at the eldest Miss Bennet.\n\n"Oh! she is the most beautiful creature I ever beheld! But there is one of her sisters sitting down just behind you, who is very pretty, and I dare say, very agreeable. Do let me ask my partner to introduce you."\n\n"Which do you mean?" and turning round, he looked for a moment at Elizabeth, till catching her eye, he withdrew his own and coldly said, "She is tolerable; but not handsome enough to tempt me; and I am in no humour at present to give consequence to young ladies who are slighted by other men."` },
+    { title: "Chapter IV",  rawContent: `When Jane and Elizabeth were alone, the former, who had been cautious in her praise of Mr. Bingley before, expressed to her sister just how very much she admired him.\n\n"He is just what a young man ought to be," said she, "sensible, good-humoured, lively; and I never saw such happy manners! — so much ease, with such perfect good breeding!"\n\n"He is also handsome," replied Elizabeth, "which a young man ought likewise to be, if he possibly can. His character is thereby complete."\n\n"I was very much flattered by his asking me to dance a second time. I did not expect such a compliment."\n\n"Did not you? I did for you. But that is one great difference between us. Compliments always take you by surprise, and me never. What could be more natural than his asking you again? He could not help seeing that you were about five times as pretty as every other woman in the room."\n\n"Oh! you are a great deal too apt to like people in general. You never see a fault in any body. All the world are good and agreeable in your eyes. I never heard you speak ill of a human being in your life."\n\n"I would not wish to be hasty in censuring any one; but I always speak what I think."\n\n"I know you do; and it is that which makes the wonder. With your good sense, to be so honestly blind to the follies and nonsense of others! Affectation of candour is common enough — one meets it every where. But to be candid without ostentation or design — to take the good of every body's character and make it still better, and say nothing of the bad — belongs to you alone."\n\n"Dear Lizzy!"\n\n"Oh! you are a great deal too apt, you know, to like people in general. You never see a fault in any body. All the world are good and agreeable in your eyes."\n\nJane had met Mr. Bingley before; but Elizabeth could only say that he was not yet of sufficient acquaintance for so decisive a judgement. She had heard rather more of Darcy than she was disposed to approve, and yet, she could not help but feel a strange, nagging curiosity about the man — proud, cold, and impossibly tall as he seemed to be, standing sentinel-like against the far wall while the rest of the room danced and laughed around him.` }
+  ]
+};
+
+// Process all chapters
+BOOK.chapters.forEach(ch => { ch.html = processRaw(ch.rawContent); });
+
+// ═══════════════════════════════════════════════
+//  SEEDED SOCIAL COMMENTS
+// ═══════════════════════════════════════════════
+const SEED_COMMENTS = [
+  { id:1, user:'thea_reads',    col:'#e74c3c', chIdx:0, text:'The opening line is iconic. One of the best in English literature — sets the satirical tone immediately.', likes:47, dislikes:2, liked:false, disliked:false, time:'3d', replies:[
+    { id:11, user:'danbooks',   col:'#3b82f6', text:'Completely agree. Austen is essentially mocking the entire neighbourhood in one sentence.', likes:13, time:'2d' },
+    { id:12, user:'paperback99',col:'#22c55e', text:'It\'s even better because it\'s technically about men being in want of wives, not the other way around!', likes:8, time:'1d' }
+  ]},
+  { id:2, user:'velvet_pages',  col:'#8b5cf6', chIdx:0, text:'Mr. Bennet\'s dry wit in this chapter is just 😭. He knew about Bingley the whole time and just let Mrs. Bennet spiral.', likes:31, dislikes:0, liked:false, disliked:false, time:'2d', replies:[] },
+  { id:3, user:'midnight_lit',  col:'#f59e0b', chIdx:1, text:'This chapter really shows how much Mr. Bennet secretly cares for his daughters despite his detachment. He DID go to visit Bingley!', likes:22, dislikes:1, liked:false, disliked:false, time:'5d', replies:[
+    { id:31, user:'thea_reads', col:'#e74c3c', text:'Absolutely. He just refuses to be earnest about it.', likes:7, time:'4d' }
+  ]},
+  { id:4, user:'danbooks',      col:'#3b82f6', chIdx:2, text:'"She is tolerable; but not handsome enough to tempt me" — peak Darcy. The audacity of this man lmao', likes:63, dislikes:3, liked:false, disliked:false, time:'1d', replies:[
+    { id:41, user:'velvet_pages',col:'#8b5cf6', text:'And then he fell absolutely in love with her. The irony.', likes:29, time:'20h' }
+  ]},
+  { id:5, user:'paperback99',   col:'#22c55e', chIdx:3, text:'Jane is too good for this world. Elizabeth sees it, Bingley sees it, everyone sees it except Mrs. Bennet who just sees a good match.', likes:18, dislikes:0, liked:false, disliked:false, time:'6h', replies:[] },
+];
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+const S = {
+  chIdx: 0,
+  pgIdx: 0,
+  pages: [],          // [{html, isFirst}] for current chapter
+  scrollMode: false,
+  uiVisible: true,
+  theme: 'dark',
+  fontSize: 18,
+  lineHeight: 185,    // /100
+  paraSpacing: 110,   // em * /100
+  fontFamily: 'Lora',
+  hyphenation: false,
+  dropCap: true,
+  clickControls: true,
+  bookmarks: new Set(),
+  highlights: [],
+  notes: [],
+  comments: JSON.parse(JSON.stringify(SEED_COMMENTS)),
+  socialFilter: 'all', // 'all' | 'ch'
+  notesTab: 'notes',   // 'notes' | 'hl'
+  selText: '',
+  selSavedRange: null,
+  pendingNote: false,
+  pageCache: {},
+};
+
+// ═══════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════
+function now() { return new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+function timeAgo(ts) {
+  const s = (Date.now() - ts) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm';
+  if (s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+}
+function pageKey() { return `${S.chIdx}:${S.pgIdx}`; }
+function chTitle() { return BOOK.chapters[S.chIdx].title; }
+
+function totalPages() {
+  let t = 0;
+  for (let i = 0; i < BOOK.chapters.length; i++) {
+    t += (i === S.chIdx ? S.pages : getPagesFor(i)).length;
+  }
+  return t;
+}
+
+function absPage() {
+  let a = 0;
+  for (let i = 0; i < S.chIdx; i++) a += getPagesFor(i).length;
+  return a + S.pgIdx;
+}
+
+function getPagesFor(chIdx) {
+  const key = `${chIdx}_${S.fontSize}_${S.lineHeight}_${S.paraSpacing}_${S.fontFamily}_${S.hyphenation}`;
+  if (S.pageCache[key]) return S.pageCache[key];
+  S.pageCache[key] = paginateChapter(chIdx);
+  return S.pageCache[key];
+}
+
+// ═══════════════════════════════════════════════
+//  PAGINATION ENGINE
+// ═══════════════════════════════════════════════
+function paginateChapter(chIdx) {
+  const area = document.getElementById('content-area');
+  const W = area.clientWidth - 60;
+  const H = area.clientHeight - 72 - 76;
+  if (W <= 0 || H <= 0) return [{html: BOOK.chapters[chIdx].html, isFirst: true}];
+
+  const probe = document.createElement('div');
+  probe.style.cssText = `position:fixed;top:-99999px;left:0;width:${W}px;visibility:hidden;pointer-events:none;`
+    + `font-family:'${S.fontFamily}',Georgia,serif;font-size:${S.fontSize}px;line-height:${S.lineHeight/100};`
+    + `hyphens:${S.hyphenation?'auto':'none'};word-break:normal;`;
+  document.body.appendChild(probe);
+
+  // Extract paragraphs from processed HTML
+  const tmp = document.createElement('div');
+  tmp.innerHTML = BOOK.chapters[chIdx].html;
+  const paras = Array.from(tmp.children).map(el => el.outerHTML);
+
+  const paraSp = (S.paraSpacing / 100) * S.fontSize;
+  const pages = [];
+  let curParas = [];
+  let curH = 0;
+
+  for (const para of paras) {
+    probe.innerHTML = para;
+    const pH = probe.offsetHeight + paraSp;
+
+    if (curParas.length > 0 && curH + pH > H) {
+      pages.push({ html: curParas.join(''), isFirst: pages.length === 0 });
+      curParas = [para];
+      curH = pH;
+    } else {
+      curParas.push(para);
+      curH += pH;
+    }
+  }
+  if (curParas.length > 0) pages.push({ html: curParas.join(''), isFirst: pages.length === 0 });
+  if (pages.length === 0) pages.push({ html: BOOK.chapters[chIdx].html, isFirst: true });
+
+  probe.remove();
+  return pages;
+}
+
+function invalidatePageCache() { S.pageCache = {}; }
+
+// ═══════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════
+function bodyClasses() {
+  return 'page-body'
+    + (S.hyphenation ? ' hyphens' : ' no-hyphens')
+    + (S.dropCap ? ' dropcap' : '');
+}
+
+function createPageDiv(page) {
+  const div = document.createElement('div');
+  div.className = 'page';
+  div.style.fontFamily = `'${S.fontFamily}',Georgia,serif`;
+  div.innerHTML = `<div class="page-header">${chTitle()}</div>`
+    + `<div class="${bodyClasses()}" style="font-family:'${S.fontFamily}',Georgia,serif;">${page.html}</div>`;
+  return div;
+}
+
+function renderPage(dir) {
+  const area = document.getElementById('content-area');
+  const old = area.querySelector('.page.active');
+
+  const page = S.pages[S.pgIdx];
+  const div = createPageDiv(page);
+
+  if (!old) {
+    div.classList.add('active');
+    area.appendChild(div);
+    return;
+  }
+
+  // Position new page offscreen in direction of travel
+  div.classList.add(dir === 'next' ? 'slide-right' : 'slide-left');
+  area.appendChild(div);
+
+  // Force reflow
+  div.getBoundingClientRect();
+
+  // Animate simultaneously
+  div.classList.remove('slide-right', 'slide-left');
+  div.classList.add('active');
+  old.classList.remove('active');
+  old.classList.add(dir === 'next' ? 'slide-left' : 'slide-right');
+
+  setTimeout(() => old.remove(), 310);
+}
+
+function renderScrollMode() {
+  const area = document.getElementById('content-area');
+  area.innerHTML = '';
+  area.classList.add('scroll-mode');
+
+  const wrap = document.createElement('div');
+  wrap.id = 'scroll-wrap';
+
+  BOOK.chapters.forEach((ch, i) => {
+    const sec = document.createElement('div');
+    sec.className = 'scroll-chapter';
+    sec.dataset.chidx = i;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'scroll-ch-header';
+    hdr.innerHTML = `<span>${ch.title}</span>`;
+
+    const body = document.createElement('div');
+    body.className = bodyClasses() + ' scroll-wrap-body';
+    body.style.fontFamily = `'${S.fontFamily}',Georgia,serif`;
+    body.innerHTML = ch.html;
+
+    sec.appendChild(hdr);
+    sec.appendChild(body);
+    wrap.appendChild(sec);
+  });
+
+  area.appendChild(wrap);
+}
+
+function scrollToChapter(chIdx, behavior) {
+  const area = document.getElementById('content-area');
+  const sec = area.querySelector(`.scroll-chapter[data-chidx="${chIdx}"]`);
+  if (!sec) return;
+  area.scrollTo({ top: sec.offsetTop - 2, behavior: behavior || 'smooth' });
+}
+
+function updateScrollProgress() {
+  const area = document.getElementById('content-area');
+  const sec = area.querySelector(`.scroll-chapter[data-chidx="${S.chIdx}"]`);
+  if (!sec) return;
+  const scrollTop = area.scrollTop;
+  const pct = Math.max(0, Math.min(100,
+    ((scrollTop - sec.offsetTop) / Math.max(1, sec.offsetHeight)) * 100));
+  const sl = document.getElementById('progress-slider');
+  sl.value = pct;
+  sl.style.background = `linear-gradient(to right,var(--accent) ${pct}%,var(--border) ${pct}%)`;
+}
+
+// ═══════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════
+function go(chIdx, pgIdx, dir) {
+  if (chIdx < 0 || chIdx >= BOOK.chapters.length) return;
+  S.chIdx = chIdx;
+  S.pages = getPagesFor(chIdx);
+  S.pgIdx = Math.max(0, Math.min(pgIdx, S.pages.length - 1));
+
+  if (S.scrollMode) {
+    scrollToChapter(chIdx);
+  } else {
+    renderPage(dir);
+  }
+  updateUI();
+}
+
+function nextPage() {
+  if (S.pgIdx < S.pages.length - 1) go(S.chIdx, S.pgIdx + 1, 'next');
+  else if (S.chIdx < BOOK.chapters.length - 1) go(S.chIdx + 1, 0, 'next');
+}
+
+function prevPage() {
+  if (S.pgIdx > 0) go(S.chIdx, S.pgIdx - 1, 'prev');
+  else if (S.chIdx > 0) {
+    S.pageCache = {};
+    const prev = getPagesFor(S.chIdx - 1);
+    go(S.chIdx - 1, prev.length - 1, 'prev');
+  }
+}
+
+function prevChapter() { if (S.chIdx > 0) go(S.chIdx - 1, 0, 'prev'); }
+function nextChapter() { if (S.chIdx < BOOK.chapters.length - 1) go(S.chIdx + 1, 0, 'next'); }
+
+// ─── UI STATE ────────────────────────────────
+function updateUI() {
+  document.getElementById('chapter-title').textContent = chTitle();
+
+  if (!S.scrollMode) {
+    // Progress is relative to current chapter only
+    const pct = S.pages.length > 1 ? (S.pgIdx / (S.pages.length - 1)) * 100 : 0;
+    const sl = document.getElementById('progress-slider');
+    sl.value = pct;
+    sl.style.background = `linear-gradient(to right,var(--accent) ${pct}%,var(--border) ${pct}%)`;
+    document.getElementById('page-count').textContent = `${S.pgIdx + 1} / ${S.pages.length}`;
+  } else {
+    updateScrollProgress();
+    document.getElementById('page-count').textContent = chTitle();
+  }
+
+  // Bookmark icon
+  const bm = S.bookmarks.has(pageKey());
+  const p = document.getElementById('bm-path');
+  p.style.fill = bm ? 'var(--accent)' : 'none';
+  p.style.stroke = bm ? 'var(--accent)' : 'currentColor';
+
+  // TOC active
+  document.querySelectorAll('.toc-item').forEach((el,i) =>
+    el.classList.toggle('active', i === S.chIdx));
+}
+
+function toggleUI() {
+  S.uiVisible = !S.uiVisible;
+  document.getElementById('topbar').classList.toggle('hidden', !S.uiVisible);
+  document.getElementById('bottombar').classList.toggle('hidden', !S.uiVisible);
+}
+
+function showUI() {
+  S.uiVisible = true;
+  document.getElementById('topbar').classList.remove('hidden');
+  document.getElementById('bottombar').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════
+//  PANELS
+// ═══════════════════════════════════════════════
+function closeAll() {
+  ['settings-panel','social-panel','notes-panel','toc-panel'].forEach(id =>
+    document.getElementById(id).classList.remove('open'));
+  document.getElementById('dict-modal').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+function openPanel(id) {
+  closeAll();
+  showUI();
+  document.getElementById(id).classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+}
+
+// ═══════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════
+function setTheme(t) {
+  S.theme = t;
+  document.getElementById('reader').setAttribute('data-theme', t);
+  document.querySelectorAll('.theme-dot').forEach(b =>
+    b.classList.toggle('active', b.dataset.theme === t));
+}
+
+function adjFont(d) {
+  S.fontSize = Math.max(13, Math.min(28, S.fontSize + d));
+  document.getElementById('reader').style.setProperty('--fs', S.fontSize + 'px');
+  document.getElementById('fs-disp').textContent = S.fontSize;
+  invalidatePageCache();
+  if (!S.scrollMode) { S.pages = getPagesFor(S.chIdx); renderPage('next'); updateUI(); }
+  // In scroll mode, CSS variable update handles live reflow automatically
+}
+
+function setLineHeight(v) {
+  S.lineHeight = +v;
+  document.getElementById('reader').style.setProperty('--lh', v/100);
+  invalidatePageCache();
+}
+
+function setParaSpacing(v) {
+  S.paraSpacing = +v;
+  document.getElementById('reader').style.setProperty('--ps', (v/100) + 'em');
+  invalidatePageCache();
+}
+
+function setFont(f) {
+  S.fontFamily = f;
+  document.querySelectorAll('.font-pill').forEach(b =>
+    b.classList.toggle('active', b.dataset.font === f));
+  document.querySelectorAll('.page-body,.scroll-wrap-body').forEach(el =>
+    el.style.fontFamily = `'${f}',Georgia,serif`);
+  invalidatePageCache();
+  if (!S.scrollMode) { S.pages = getPagesFor(S.chIdx); renderPage('next'); updateUI(); }
+}
+
+function setMode(scroll) {
+  S.scrollMode = scroll;
+  document.getElementById('mode-page').classList.toggle('active', !scroll);
+  document.getElementById('mode-scroll').classList.toggle('active', scroll);
+  document.getElementById('tap-zones').classList.toggle('enabled', !scroll && S.clickControls);
+
+  const area = document.getElementById('content-area');
+  if (!scroll) {
+    area.classList.remove('scroll-mode');
+    area.innerHTML = '';
+    S.pages = getPagesFor(S.chIdx);
+    const div = createPageDiv(S.pages[S.pgIdx]);
+    div.classList.add('active');
+    area.appendChild(div);
+  } else {
+    renderScrollMode();
+    // Jump to current chapter without animation after render
+    requestAnimationFrame(() => scrollToChapter(S.chIdx, 'instant'));
+  }
+  updateUI();
+}
+
+function togSetting(key, id) {
+  S[key] = !S[key];
+  document.getElementById(id).classList.toggle('on', S[key]);
+  if (key === 'hyphenation' || key === 'dropCap') {
+    invalidatePageCache();
+    if (!S.scrollMode) { S.pages = getPagesFor(S.chIdx); renderPage('next'); }
+    else {
+      document.querySelectorAll('.scroll-wrap-body').forEach(b => {
+        b.className = bodyClasses() + ' scroll-wrap-body';
+      });
+    }
+    const pb = document.querySelector('.page-body');
+    if (pb) pb.className = bodyClasses();
+  }
+  if (key === 'clickControls') {
+    document.getElementById('tap-zones').classList.toggle('enabled', S.clickControls && !S.scrollMode);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SELECTION TOOLBAR
+// ═══════════════════════════════════════════════
+let selBarTimeout;
+
+function positionSelBar(rect) {
+  const bar = document.getElementById('sel-bar');
+  const reader = document.getElementById('reader');
+  const rRect = reader.getBoundingClientRect();
+  const bw = bar.offsetWidth || 220;
+
+  let top = rect.top - rRect.top - 46;
+  let left = rect.left - rRect.left + rect.width / 2 - bw / 2;
+  left = Math.max(8, Math.min(left, rRect.width - bw - 8));
+  if (top < 60) top = rect.bottom - rRect.top + 8;
+
+  bar.style.top = top + 'px';
+  bar.style.left = left + 'px';
+}
+
+function showSelBar(rect) {
+  clearTimeout(selBarTimeout);
+  positionSelBar(rect);
+  document.getElementById('sel-bar').classList.add('on');
+}
+
+function hideSelBar() {
+  document.getElementById('sel-bar').classList.remove('on');
+  S.selText = '';
+  S.selSavedRange = null;
+}
+
+function saveSelection() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    S.selSavedRange = sel.getRangeAt(0).cloneRange();
+    S.selText = sel.toString().trim();
+  }
+}
+
+function restoreSelection() {
+  if (!S.selSavedRange) return;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(S.selSavedRange);
+}
+
+document.addEventListener('selectionchange', () => {
+  clearTimeout(selBarTimeout);
+  selBarTimeout = setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideSelBar(); return; }
+    const txt = sel.toString().trim();
+    if (txt.length < 1) { hideSelBar(); return; }
+    S.selText = txt;
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    showSelBar(rect);
+  }, 120);
+});
+
+function applyHighlight(color) {
+  saveSelection();
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  const text = sel.toString().trim();
+
+  const mark = document.createElement('mark');
+  mark.className = `hl hl-${color}`;
+  const hid = Date.now();
+  mark.dataset.hid = hid;
+
+  try {
+    range.surroundContents(mark);
+  } catch(e) {
+    // Cross-element: extract and wrap
+    try {
+      const frag = range.extractContents();
+      mark.appendChild(frag);
+      range.insertNode(mark);
+    } catch(e2) {}
+  }
+
+  sel.removeAllRanges();
+  S.highlights.push({ id: hid, key: pageKey(), ch: chTitle(), pg: S.pgIdx+1, text, color, note:'', ts: Date.now() });
+  hideSelBar();
+  toast('Highlighted');
+}
+
+function copySelection() {
+  if (!S.selText) return;
+  navigator.clipboard && navigator.clipboard.writeText(S.selText);
+  hideSelBar();
+  toast('Copied');
+}
+
+function addNoteFromSelection() {
+  saveSelection();
+  S.pendingNote = true;
+  hideSelBar();
+  // Open notes panel on notes tab
+  document.getElementById('notes-panel').classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('note-write').style.display = 'flex';
+  document.getElementById('note-input').focus();
+  switchNotesTab('notes');
+}
+
+async function dictLookup() {
+  const word = S.selText.trim().split(/\s+/)[0];
+  if (!word) return;
+  hideSelBar();
+  window.getSelection().removeAllRanges();
+
+  const modal = document.getElementById('dict-modal');
+  document.getElementById('dict-word').textContent = word;
+  document.getElementById('dict-pron').textContent = '';
+  document.getElementById('dict-body').innerHTML = '<div class="dict-loading">Looking up…</div>';
+  modal.classList.add('on');
+  document.getElementById('overlay').classList.add('on');
+
+  try {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const entry = data[0];
+    const pron = entry.phonetics?.find(p => p.text)?.text || '';
+    document.getElementById('dict-pron').textContent = pron;
+
+    let html = '';
+    const maxMeanings = Math.min(entry.meanings?.length || 0, 3);
+    for (let i = 0; i < maxMeanings; i++) {
+      const m = entry.meanings[i];
+      html += `<div class="dict-pos">${m.partOfSpeech}</div>`;
+      const defs = m.definitions.slice(0, 2);
+      defs.forEach((d,j) => {
+        html += `<div class="dict-def">${j+1}. ${d.definition}`;
+        if (d.example) html += `<br><span>"${d.example}"</span>`;
+        html += `</div>`;
+      });
+    }
+    document.getElementById('dict-body').innerHTML = html || '<div class="dict-err">No definitions found.</div>';
+  } catch(e) {
+    document.getElementById('dict-body').innerHTML = '<div class="dict-err">Could not fetch definition.<br>Check your connection.</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  BOOKMARKS
+// ═══════════════════════════════════════════════
+function toggleBookmark() {
+  const k = pageKey();
+  if (S.bookmarks.has(k)) { S.bookmarks.delete(k); toast('Bookmark removed'); }
+  else { S.bookmarks.add(k); toast('Bookmarked'); }
+  updateUI();
+}
+
+// ═══════════════════════════════════════════════
+//  SOCIAL COMMENTS
+// ═══════════════════════════════════════════════
+function avatarColor(user) {
+  const colors = ['#e74c3c','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#6366f1'];
+  let h = 0; for (const c of user) h = ((h<<5)-h) + c.charCodeAt(0);
+  return colors[Math.abs(h) % colors.length];
+}
+
+function renderSocial() {
+  const list = document.getElementById('social-list');
+  const items = S.socialFilter === 'all'
+    ? S.comments
+    : S.comments.filter(c => c.chIdx === S.chIdx);
+
+  if (!items.length) {
+    list.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24"><path d="M17 8h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v4l-4-4H9a2 2 0 0 1-2-2v-1"/><path d="M3 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2v4l4-4h6a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/></svg>
+      No comments yet.<br>Be the first to share your thoughts!
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(c => renderCommentCard(c)).join('');
+
+  // Bind like/dislike/reply
+  list.querySelectorAll('[data-like]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmt = S.comments.find(x => x.id === +btn.dataset.like);
+      if (!cmt) return;
+      if (cmt.liked) { cmt.likes--; cmt.liked = false; }
+      else { if (cmt.disliked) { cmt.dislikes--; cmt.disliked = false; } cmt.likes++; cmt.liked = true; }
+      renderSocial();
+    });
+  });
+  list.querySelectorAll('[data-dislike]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmt = S.comments.find(x => x.id === +btn.dataset.dislike);
+      if (!cmt) return;
+      if (cmt.disliked) { cmt.dislikes--; cmt.disliked = false; }
+      else { if (cmt.liked) { cmt.likes--; cmt.liked = false; } cmt.dislikes++; cmt.disliked = true; }
+      renderSocial();
+    });
+  });
+  list.querySelectorAll('[data-reply-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.replyToggle;
+      const inp = document.getElementById('ri-'+id);
+      if (inp) inp.style.display = inp.style.display === 'none' ? 'flex' : 'none';
+    });
+  });
+  list.querySelectorAll('[data-reply-send]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = +btn.dataset.replySend;
+      const inp = document.getElementById('ri-text-'+id);
+      const txt = inp && inp.value.trim();
+      if (!txt) return;
+      const cmt = S.comments.find(x => x.id === id);
+      if (cmt) cmt.replies.push({ id: Date.now(), user:'You', col:'#6366f1', text:txt, likes:0, time:'now' });
+      renderSocial();
+    });
+  });
+}
+
+function renderCommentCard(c, isReply=false) {
+  const ts = c.ts ? timeAgo(c.ts) : c.time;
+  const col = avatarColor(c.user);
+  const lv = c.liked ? ' liked' : '';
+  return `<div class="sc-card" style="${isReply?'':''}">
+    <div class="cmt-avatar" style="background:${col};width:${isReply?22:28}px;height:${isReply?22:28}px;font-size:${isReply?10:12}px;flex-shrink:0">${c.user[0].toUpperCase()}</div>
+    <div class="sc-body">
+      <div class="sc-meta">
+        <span class="sc-user">${c.user}</span>
+        <span class="sc-time">${ts}</span>
+        ${!isReply && c.chIdx !== undefined ? `<span class="sc-loc">${BOOK.chapters[c.chIdx]?.title||''}</span>` : ''}
+      </div>
+      <div class="sc-text">${esc(c.text)}</div>
+      <div class="sc-actions">
+        <button class="sc-act${lv}" data-like="${c.id}">
+          <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+          ${c.likes||0}
+        </button>
+        <button class="sc-act${c.disliked?' liked':''}" data-dislike="${c.id}">
+          <svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+          ${c.dislikes||0}
+        </button>
+        ${!isReply ? `<button class="sc-act" data-reply-toggle="${c.id}">
+          <svg viewBox="0 0 24 24"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+          Reply ${c.replies?.length ? `(${c.replies.length})` : ''}
+        </button>` : ''}
+      </div>
+      ${!isReply && c.replies?.length ? `<div class="sc-replies">${c.replies.map(r=>renderCommentCard(r,true)).join('')}</div>` : ''}
+      ${!isReply ? `<div class="sc-reply-input" id="ri-${c.id}" style="display:none">
+        <textarea class="cmt-input" id="ri-text-${c.id}" placeholder="Reply…" rows="1" style="font-size:12px;padding:6px 10px;min-height:32px" oninput="this.style.height='';this.style.height=Math.min(this.scrollHeight,72)+'px'"></textarea>
+        <button class="send-btn" data-reply-send="${c.id}" style="width:28px;height:28px;border-radius:7px">
+          <svg viewBox="0 0 24 24" style="width:11px;height:11px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function postComment(text) {
+  if (!text.trim()) return;
+  S.comments.unshift({
+    id: Date.now(), user:'You', chIdx:S.chIdx,
+    text: text.trim(), likes:0, dislikes:0,
+    liked:false, disliked:false, ts:Date.now(), replies:[]
+  });
+  renderSocial();
+}
+
+// ═══════════════════════════════════════════════
+//  NOTES & HIGHLIGHTS
+// ═══════════════════════════════════════════════
+function switchNotesTab(tab) {
+  S.notesTab = tab;
+  document.getElementById('ntab-notes').classList.toggle('active', tab==='notes');
+  document.getElementById('ntab-hl').classList.toggle('active', tab==='hl');
+  renderNotes();
+}
+
+function renderNotes() {
+  const list = document.getElementById('notes-list');
+  if (S.notesTab === 'notes') {
+    if (!S.notes.length) {
+      list.innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        No notes yet.<br>Select text and tap the note icon.
+      </div>`;
+    } else {
+      list.innerHTML = S.notes.map((n,i) => `
+        <div class="note-card">
+          <div class="note-meta">
+            <span class="note-loc">${n.ch} · p.${n.pg}</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span class="note-time">${n.time}</span>
+              <button class="note-del" data-del="${i}">✕</button>
+            </span>
+          </div>
+          ${n.ref ? `<div style="font-size:12px;font-style:italic;color:var(--text-dim);margin-bottom:4px;border-left:2px solid var(--accent);padding-left:8px">${esc(n.ref.slice(0,80))}${n.ref.length>80?'…':''}</div>` : ''}
+          <div class="note-text">${esc(n.text)}</div>
+        </div>`).join('');
+      list.querySelectorAll('[data-del]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          S.notes.splice(+btn.dataset.del, 1);
+          renderNotes();
+        }));
+    }
+  } else {
+    if (!S.highlights.length) {
+      list.innerHTML = `<div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        No highlights yet.<br>Select text and choose a colour.
+      </div>`;
+    } else {
+      list.innerHTML = S.highlights.map((h,i) => `
+        <div class="hl-card hl-${h.color}" style="border:1px solid var(--border);background:var(--surface2)">
+          <div class="hl-row">
+            <div class="hl-bar"></div>
+            <div style="flex:1;min-width:0">
+              <div class="note-meta" style="margin-bottom:4px">
+                <span class="note-loc">${h.ch} · p.${h.pg}</span>
+                <button class="note-del" data-hdel="${i}">✕</button>
+              </div>
+              <div class="hl-excerpt">${esc(h.text.slice(0,120))}${h.text.length>120?'…':''}</div>
+            </div>
+          </div>
+        </div>`).join('');
+      list.querySelectorAll('[data-hdel]').forEach(btn =>
+        btn.addEventListener('click', () => {
+          S.highlights.splice(+btn.dataset.hdel, 1);
+          renderNotes();
+        }));
+    }
+  }
+}
+
+function submitNote() {
+  const inp = document.getElementById('note-input');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  S.notes.unshift({
+    ch: chTitle(), pg: S.pgIdx + 1,
+    ref: S.selText || '',
+    text: txt, time: now()
+  });
+  inp.value = '';
+  inp.style.height = '';
+  S.selText = '';
+  S.pendingNote = false;
+  document.getElementById('note-write').style.display = 'none';
+  renderNotes();
+  toast('Note saved');
+}
+
+// ═══════════════════════════════════════════════
+//  TOC
+// ═══════════════════════════════════════════════
+function buildTOC() {
+  document.getElementById('toc-list').innerHTML = BOOK.chapters.map((ch,i) =>
+    `<div class="toc-item${i===0?' active':''}" data-ch="${i}">
+      <span class="toc-num">${String(i+1).padStart(2,'0')}</span>
+      <span>${ch.title}</span>
+    </div>`).join('');
+  document.getElementById('toc-list').addEventListener('click', e => {
+    const item = e.target.closest('[data-ch]');
+    if (!item) return;
+    const idx = +item.dataset.ch;
+    closeAll();
+    go(idx, 0, idx >= S.chIdx ? 'next' : 'prev');
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  SCROLL PROGRESS (scroll mode)
+// ═══════════════════════════════════════════════
+document.getElementById('content-area').addEventListener('scroll', () => {
+  if (!S.scrollMode) return;
+  const area = document.getElementById('content-area');
+  const scrollMid = area.scrollTop + area.clientHeight * 0.35;
+
+  // Detect which chapter is currently in view
+  let detected = 0;
+  area.querySelectorAll('.scroll-chapter').forEach(sec => {
+    if (sec.offsetTop <= scrollMid) detected = +sec.dataset.chidx;
+  });
+
+  if (detected !== S.chIdx) {
+    S.chIdx = detected;
+    S.pages = getPagesFor(S.chIdx);
+    document.getElementById('chapter-title').textContent = chTitle();
+    document.getElementById('page-count').textContent = chTitle();
+    document.querySelectorAll('.toc-item').forEach((el,i) =>
+      el.classList.toggle('active', i === S.chIdx));
+    const bm = S.bookmarks.has(pageKey());
+    const p = document.getElementById('bm-path');
+    p.style.fill = bm ? 'var(--accent)' : 'none';
+    p.style.stroke = bm ? 'var(--accent)' : 'currentColor';
+  }
+  updateScrollProgress();
+});
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+let _tt;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.classList.remove('on'), 1700);
+}
+
+// ═══════════════════════════════════════════════
+//  TOUCH SWIPE
+// ═══════════════════════════════════════════════
+let _tx=0, _ty=0, _moved=false;
+document.addEventListener('touchstart', e => {
+  _tx = e.touches[0].clientX;
+  _ty = e.touches[0].clientY;
+  _moved = false;
+}, {passive:true});
+document.addEventListener('touchmove', e => { _moved = true; }, {passive:true});
+document.addEventListener('touchend', e => {
+  if (!_moved) return;
+  if (document.querySelector('.panel-right.open,.panel-left.open,.panel-bottom.open')) return;
+  const dx = e.changedTouches[0].clientX - _tx;
+  const dy = e.changedTouches[0].clientY - _ty;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 55) {
+    if (S.scrollMode) {
+      dx < 0 ? nextChapter() : prevChapter();
+    } else {
+      dx < 0 ? nextPage() : prevPage();
+    }
+  }
+}, {passive:true});
+
+// ═══════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextChapter();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   prevChapter();
+  if (e.key === 'Escape') closeAll();
+});
+
+// ═══════════════════════════════════════════════
+//  EVENT BINDINGS
+// ═══════════════════════════════════════════════
+// Top bar
+document.getElementById('btn-toc').addEventListener('click',      () => openPanel('toc-panel'));
+document.getElementById('btn-social').addEventListener('click',   () => { openPanel('social-panel'); renderSocial(); });
+document.getElementById('btn-notes').addEventListener('click',    () => { openPanel('notes-panel'); renderNotes(); });
+document.getElementById('btn-bm').addEventListener('click',       () => toggleBookmark());
+document.getElementById('btn-settings').addEventListener('click', () => openPanel('settings-panel'));
+
+// Close buttons
+document.getElementById('close-toc').addEventListener('click',    closeAll);
+document.getElementById('close-social').addEventListener('click', closeAll);
+document.getElementById('close-notes').addEventListener('click',  closeAll);
+document.getElementById('close-dict').addEventListener('click',   () => {
+  document.getElementById('dict-modal').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+});
+
+// Overlay
+document.getElementById('overlay').addEventListener('click', () => {
+  document.getElementById('dict-modal').classList.remove('on');
+  closeAll();
+});
+
+// Bottom bar
+document.getElementById('btn-prev-ch').addEventListener('click', prevChapter);
+document.getElementById('btn-next-ch').addEventListener('click', nextChapter);
+document.getElementById('progress-slider').addEventListener('input', function() {
+  if (S.scrollMode) {
+    const area = document.getElementById('content-area');
+    const sec = area.querySelector(`.scroll-chapter[data-chidx="${S.chIdx}"]`);
+    if (sec) area.scrollTo({ top: sec.offsetTop + (this.value/100) * sec.offsetHeight, behavior: 'instant' });
+    return;
+  }
+  // Page mode: jump to page within current chapter
+  const target = Math.round((this.value/100) * (S.pages.length - 1));
+  go(S.chIdx, target, target >= S.pgIdx ? 'next' : 'prev');
+});
+
+// Tap zones
+document.getElementById('tz-left').addEventListener('click', () => { if (!window.getSelection()?.toString()) prevPage(); });
+document.getElementById('tz-right').addEventListener('click', () => { if (!window.getSelection()?.toString()) nextPage(); });
+document.getElementById('tz-mid').addEventListener('click', () => {
+  if (window.getSelection()?.toString()) return;
+  toggleUI();
+});
+
+// Settings: themes
+document.querySelectorAll('.theme-dot').forEach(b =>
+  b.addEventListener('click', () => setTheme(b.dataset.theme)));
+
+// Settings: font size
+document.getElementById('fs-down').addEventListener('click', () => adjFont(-1));
+document.getElementById('fs-up').addEventListener('click',   () => adjFont(1));
+
+// Settings: sliders
+document.getElementById('lh-slider').addEventListener('input', function() { setLineHeight(this.value); });
+document.getElementById('lh-slider').addEventListener('change', () => {
+  if (!S.scrollMode) { S.pages = getPagesFor(S.chIdx); renderPage('next'); updateUI(); }
+});
+document.getElementById('ps-slider').addEventListener('input', function() { setParaSpacing(this.value); });
+document.getElementById('ps-slider').addEventListener('change', () => {
+  if (!S.scrollMode) { S.pages = getPagesFor(S.chIdx); renderPage('next'); updateUI(); }
+});
+
+// Settings: font pills
+document.querySelectorAll('.font-pill').forEach(b =>
+  b.addEventListener('click', () => setFont(b.dataset.font)));
+
+// Settings: mode
+document.getElementById('mode-page').addEventListener('click',   () => { if (S.scrollMode) setMode(false); });
+document.getElementById('mode-scroll').addEventListener('click', () => { if (!S.scrollMode) setMode(true); });
+
+// Settings: toggles
+document.getElementById('tog-hyph').addEventListener('click',     () => togSetting('hyphenation','tog-hyph'));
+document.getElementById('tog-dropcap').addEventListener('click',  () => togSetting('dropCap','tog-dropcap'));
+document.getElementById('tog-controls').addEventListener('click', () => togSetting('clickControls','tog-controls'));
+
+// Selection toolbar
+document.querySelectorAll('[data-hlcolor]').forEach(b =>
+  b.addEventListener('click', () => applyHighlight(b.dataset.hlcolor)));
+document.getElementById('sel-copy').addEventListener('click', copySelection);
+document.getElementById('sel-note').addEventListener('click', addNoteFromSelection);
+document.getElementById('sel-dict').addEventListener('click', dictLookup);
+
+// Social comments
+document.getElementById('ctab-all').addEventListener('click', () => {
+  S.socialFilter='all';
+  document.getElementById('ctab-all').classList.add('active');
+  document.getElementById('ctab-ch').classList.remove('active');
+  renderSocial();
+});
+document.getElementById('ctab-ch').addEventListener('click', () => {
+  S.socialFilter='ch';
+  document.getElementById('ctab-ch').classList.add('active');
+  document.getElementById('ctab-all').classList.remove('active');
+  renderSocial();
+});
+document.getElementById('social-send').addEventListener('click', () => {
+  const inp = document.getElementById('social-input');
+  postComment(inp.value);
+  inp.value = '';
+  inp.style.height = '';
+});
+document.getElementById('social-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('social-send').click(); }
+});
+document.getElementById('social-input').addEventListener('input', function() {
+  this.style.height = ''; this.style.height = Math.min(this.scrollHeight,90)+'px';
+});
+
+// Notes
+document.getElementById('ntab-notes').addEventListener('click', () => switchNotesTab('notes'));
+document.getElementById('ntab-hl').addEventListener('click',    () => switchNotesTab('hl'));
+document.getElementById('note-send').addEventListener('click',  submitNote);
+document.getElementById('note-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitNote(); }
+});
+document.getElementById('note-input').addEventListener('input', function() {
+  this.style.height = ''; this.style.height = Math.min(this.scrollHeight,90)+'px';
+});
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+(function init() {
+  buildTOC();
+
+  // Page mode init
+  document.getElementById('tap-zones').classList.add('enabled');
+  S.pages = getPagesFor(0);
+  const div = createPageDiv(S.pages[0]);
+  div.classList.add('active');
+  document.getElementById('content-area').appendChild(div);
+
+  updateUI();
+  renderSocial();
+  renderNotes();
+})();
+</script>
+</body>
+</html>

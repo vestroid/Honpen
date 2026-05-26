@@ -4,6 +4,8 @@ import android.content.Context
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.ui.browse.extension.lua.LuaExtensionManager
+import eu.kanade.tachiyomi.ui.browse.extension.lua.LuaSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -22,6 +24,7 @@ import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 class AndroidSourceManager(
@@ -29,6 +32,8 @@ class AndroidSourceManager(
     private val extensionManager: ExtensionManager,
     private val sourceRepository: StubSourceRepository,
 ) : SourceManager {
+
+    private val luaManager = LuaExtensionManager()
 
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
@@ -64,6 +69,21 @@ class AndroidSourceManager(
                             registerStubSource(StubSource.from(it))
                         }
                     }
+
+                    // Load Lua Extensions
+                    val luaDir = File(context.filesDir, "lua_extensions")
+                    if (luaDir.exists()) {
+                        luaDir.listFiles()?.filter { it.extension == "lua" }?.forEach { file ->
+                            try {
+                                val luaSource = LuaSource(luaManager, file.readText())
+                                mutableMap[luaSource.id] = luaSource
+                                registerStubSource(StubSource.from(luaSource))
+                            } catch (e: Exception) {
+                                // Log or ignore malformed lua scripts
+                            }
+                        }
+                    }
+
                     sourcesMapFlow.value = mutableMap
                     _isInitialized.value = true
                 }

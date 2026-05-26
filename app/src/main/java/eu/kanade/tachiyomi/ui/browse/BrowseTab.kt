@@ -18,6 +18,7 @@ import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.browse.extension.ExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.extension.extensionsTab
+import eu.kanade.tachiyomi.ui.browse.extension.lua.localExtensionsTab
 import eu.kanade.tachiyomi.ui.browse.migration.sources.migrateSourceTab
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import eu.kanade.tachiyomi.ui.browse.source.sourcesTab
@@ -65,6 +66,7 @@ data object BrowseTab : Tab {
         val tabs = persistentListOf(
             sourcesTab(),
             extensionsTab(extensionsScreenModel),
+            localExtensionsTab(),
             migrateSourceTab(),
         )
 

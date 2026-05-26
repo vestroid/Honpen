@@ -24,10 +24,14 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "app.mihon"
+        applicationId = "honpen.app"
 
         versionCode = 22
         versionName = "0.19.9"
+
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getLatestCommitSha()}\"")
@@ -179,6 +183,9 @@ dependencies {
     implementation(projects.presentationCore)
     implementation(projects.presentationWidget)
     implementation(projects.telemetry)
+
+    // Lua engine
+    implementation("org.luaj:luaj-jse:3.0.1")
 
     // Compose
     implementation(libs.androidx.activity.compose)

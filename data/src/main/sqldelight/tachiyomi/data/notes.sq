@@ -1,0 +1,25 @@
+CREATE TABLE notes (
+    _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    chapter_id INTEGER NOT NULL,
+    page_index INTEGER NOT NULL,
+    selected_text TEXT,
+    note_text TEXT NOT NULL,
+    color TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(chapter_id) REFERENCES chapters(_id) ON DELETE CASCADE
+);
+
+CREATE INDEX notes_chapter_id_index ON notes(chapter_id);
+
+getNotesByChapterId:
+SELECT *
+FROM notes
+WHERE chapter_id = ?;
+
+insertNote:
+INSERT INTO notes(chapter_id, page_index, selected_text, note_text, color, created_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteNote:
+DELETE FROM notes
+WHERE _id = ?;

@@ -7,8 +7,9 @@ open class ReaderPage(
     index: Int,
     url: String = "",
     imageUrl: String? = null,
+    text: String? = null,
     var stream: (() -> InputStream)? = null,
-) : Page(index, url, imageUrl, null) {
+) : Page(index, url, imageUrl, text, null) {
 
     open lateinit var chapter: ReaderChapter
 }
