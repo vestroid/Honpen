@@ -102,7 +102,25 @@ class LuaExtensionManager {
     
     fun tableToJsonString(table: LuaValue): String {
         if (!table.istable()) return "{}"
-        return luaTableToJsonObject(table.checktable()).toString()
+        return luaTableToJson(table.checktable()).toString()
+    }
+
+    private fun isArray(table: LuaTable): Boolean {
+        if (table.length() == 0) return false
+        val keys = table.keys()
+        for (i in 1..table.length()) {
+            if (table.get(i).isnil()) return false
+        }
+        // Also check if there are other non-integer keys
+        return keys.size == table.length()
+    }
+
+    private fun luaTableToJson(table: LuaTable): Any {
+        return if (isArray(table)) {
+            luaTableToJsonArray(table)
+        } else {
+            luaTableToJsonObject(table)
+        }
     }
 
     private fun luaTableToJsonObject(table: LuaTable): JSONObject {
@@ -110,19 +128,28 @@ class LuaExtensionManager {
         val keys = table.keys()
         for (key in keys) {
             val value = table.get(key)
-            if (value.istable()) {
-                json.put(key.tojstring(), luaTableToJsonObject(value.checktable()))
-            } else if (value.isint()) {
-                json.put(key.tojstring(), value.toint())
-            } else if (value.isnumber()) {
-                json.put(key.tojstring(), value.todouble())
-            } else if (value.isboolean()) {
-                json.put(key.tojstring(), value.toboolean())
-            } else {
-                json.put(key.tojstring(), value.tojstring())
-            }
+            json.put(key.tojstring(), luaValueToJsonValue(value))
         }
         return json
+    }
+
+    private fun luaTableToJsonArray(table: LuaTable): JSONArray {
+        val json = JSONArray()
+        for (i in 1..table.length()) {
+            json.put(luaValueToJsonValue(table.get(i)))
+        }
+        return json
+    }
+
+    private fun luaValueToJsonValue(value: LuaValue): Any? {
+        return when {
+            value.istable() -> luaTableToJson(value.checktable())
+            value.isint() -> value.toint()
+            value.isnumber() -> value.todouble()
+            value.isboolean() -> value.toboolean()
+            value.isnil() -> null
+            else -> value.tojstring()
+        }
     }
 
     fun loadExtension(script: String): LuaValue {
@@ -135,7 +162,7 @@ class LuaExtensionManager {
         if (searchFunc.isfunction()) {
             val result = searchFunc.call(scriptObj, LuaValue.valueOf(query), LuaValue.valueOf(page))
             if (result.istable()) {
-                 return luaTableToJsonObject(result.checktable()).toString() // Needs proper array serialization in reality
+                 return tableToJsonString(result)
             }
             return result.toString()
         }
