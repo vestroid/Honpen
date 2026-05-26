@@ -28,7 +28,7 @@ class LuaSource(
 
     override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage {
         val json = luaManager.search(sourceObj, query, page)
-        val array = JSONArray(json)
+        val array = if (json.trim() == "{}") JSONArray() else JSONArray(json)
         val mangas = mutableListOf<SManga>()
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
@@ -56,7 +56,7 @@ class LuaSource(
         if (getChapterListFunc.isfunction()) {
             val result = getChapterListFunc.call(sourceObj, LuaValue.valueOf(manga.url))
             val json = luaManager.tableToJsonString(result)
-            val array = JSONArray(json)
+            val array = if (json.trim() == "{}") JSONArray() else JSONArray(json)
             val chapters = mutableListOf<SChapter>()
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
