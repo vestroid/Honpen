@@ -1,4 +1,4 @@
-name: Build Honpen APK 2
+name: Honpen Build
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build APK
+    name: Build Honpen APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,7 +19,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
       - name: Build arm64-v8a APK
         run: ./gradlew app:assembleDebug
@@ -27,6 +32,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: honpen-arm64-v8a
+          name: Honpen-arm64-v8a
           path: app/build/outputs/apk/debug/*.apk
-          
