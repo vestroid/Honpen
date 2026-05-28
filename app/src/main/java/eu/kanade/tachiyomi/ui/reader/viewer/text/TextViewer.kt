@@ -25,11 +25,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import tachiyomi.data.Database
+import org.json.JSONException
 
 class TextViewer(val activity: ReaderActivity) : Viewer {
 
     private val database: Database = Injekt.get()
     private val scope = CoroutineScope(Dispatchers.IO)
+
+    private var allPages: List<ReaderPage> = emptyList()
+    private val loadedChapterIndices = mutableSetOf<Int>()
 
     private val webView: WebView = WebView(activity).apply {
         layoutParams = FrameLayout.LayoutParams(
@@ -67,6 +71,13 @@ class TextViewer(val activity: ReaderActivity) : Viewer {
             }
             println("Deleted note $noteId")
         }
+
+        @JavascriptInterface
+        fun onChapterChanged(index: Int) {
+            activity.runOnUiThread {
+                loadWindow(index)
+            }
+        }
     }
 
     init {
@@ -90,61 +101,114 @@ class TextViewer(val activity: ReaderActivity) : Viewer {
     }
 
     override fun setChapters(chapters: ViewerChapters) {
-        // Here we would inject the chapter text from chapters into the webview
         val currChapter = chapters.currChapter
         val pages = currChapter.pages
         if (pages.isNullOrEmpty()) return
+        allPages = pages
+        loadedChapterIndices.clear()
 
-        val textPages = pages.filter { it.text != null }
-        if (textPages.isNotEmpty()) {
-            // Join the text or handle it
-            val content = textPages.joinToString("\n") { it.text ?: "" }
-            
-            val chapterId = currChapter.chapter.id ?: 0L
-            val notes = database.notesQueries.getNotesByChapterId(chapterId).executeAsList()
-            
-            val notesJsonArray = JSONArray()
-            for (note in notes) {
-                notesJsonArray.put(JSONObject().apply {
-                    put("id", note._id)
-                    put("chapterId", note.chapter_id)
-                    put("pageIndex", note.page_index)
-                    put("selectedText", note.selected_text)
-                    put("noteText", note.note_text)
-                    put("color", note.color)
-                    put("createdAt", note.created_at)
-                })
-            }
-
-            // Create a JSON object representing the book and chapter
-            val jsBook = JSONObject().apply {
-                put("title", currChapter.chapter.name)
-                put("chapters", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("id", chapterId)
-                        put("title", currChapter.chapter.name)
-                        put("rawContent", content)
-                        put("notes", notesJsonArray)
-                    })
-                })
-            }
-            
-            // Inject into WebView
-            val js = "javascript:(function() { " +
-                     "  BOOK = ${jsBook.toString()}; " +
-                     "  BOOK.chapters.forEach(ch => { ch.html = processRaw(ch.rawContent); }); " +
-                     "  if (typeof NOTES !== 'undefined') { NOTES = BOOK.chapters[0].notes; } " +
-                     "  invalidatePageCache(); " +
-                     "  if (!S.scrollMode) { S.pages = getPagesFor(0); renderPage('next'); updateUI(); } " +
-                     "  else { setMode(true); } " +
-                     "})()"
-            webView.evaluateJavascript(js, null)
+        val chapterId = currChapter.chapter.id ?: 0L
+        val notes = database.notesQueries.getNotesByChapterId(chapterId).executeAsList()
+        
+        val notesJsonArray = JSONArray()
+        for (note in notes) {
+            notesJsonArray.put(JSONObject().apply {
+                put("id", note._id)
+                put("chapterId", note.chapter_id)
+                put("pageIndex", note.page_index)
+                put("selectedText", note.selected_text)
+                put("noteText", note.note_text)
+                put("color", note.color)
+                put("createdAt", note.created_at)
+            })
         }
+
+        val jsBook = JSONObject().apply {
+            put("title", currChapter.chapter.name)
+            put("chapters", JSONArray().apply {
+                pages.forEachIndexed { i, page ->
+                    put(JSONObject().apply {
+                        put("id", chapterId) // Keeping same chapter id for notes
+                        put("title", "Chapter ${i + 1}")
+                        put("rawContent", "")
+                        if (i == 0) put("notes", notesJsonArray)
+                    })
+                }
+            })
+        }
+        
+        val js = "javascript:(function() { " +
+                 "  BOOK = ${jsBook.toString()}; " +
+                 "  if (typeof NOTES !== 'undefined' && BOOK.chapters.length > 0) { NOTES = BOOK.chapters[0].notes || []; } " +
+                 "  invalidatePageCache(); " +
+                 "  if (!S.scrollMode) { S.pages = getPagesFor(0); renderPage('next'); updateUI(); } " +
+                 "  else { setMode(true); } " +
+                 "})()"
+        webView.evaluateJavascript(js, null)
     }
 
     override fun moveToPage(page: ReaderPage) {
-        val js = "javascript:go(0, ${page.index}, 'next');"
+        val mainIdx = page.index
+        loadWindow(mainIdx)
+        
+        val js = "javascript:go(${page.index}, 0, 'next');"
         webView.evaluateJavascript(js, null)
+    }
+
+    private fun loadWindow(mainIdx: Int) {
+        if (allPages.isEmpty()) return
+
+        val windowStart = maxOf(0, mainIdx - 3)
+        val windowEnd = minOf(allPages.size - 1, mainIdx + 4)
+        val windowIndices = (windowStart..windowEnd).toSet()
+
+        // Unload pages outside window to save memory
+        loadedChapterIndices.minus(windowIndices).forEach { idx ->
+            val js = "javascript:(function() { if(BOOK && BOOK.chapters[$idx]) { BOOK.chapters[$idx].rawContent = ''; BOOK.chapters[$idx].html = '<p>(Empty content)</p>'; } invalidatePageCache(); })()"
+            webView.evaluateJavascript(js, null)
+        }
+
+        // Load main chapter first
+        if (!loadedChapterIndices.contains(mainIdx)) {
+            loadChapterContent(mainIdx)
+        }
+        
+        // Then load new chapters
+        for (idx in mainIdx + 1..windowEnd) {
+            if (!loadedChapterIndices.contains(idx)) {
+                loadChapterContent(idx)
+            }
+        }
+        
+        // Then load old chapters if needed
+        for (idx in mainIdx - 1 downTo windowStart) {
+            if (!loadedChapterIndices.contains(idx)) {
+                loadChapterContent(idx)
+            }
+        }
+
+        loadedChapterIndices.clear()
+        loadedChapterIndices.addAll(windowIndices)
+    }
+
+    private fun loadChapterContent(idx: Int) {
+        val page = allPages.getOrNull(idx) ?: return
+        scope.launch {
+            val content = page.stream?.invoke()?.bufferedReader()?.use { it.readText() } ?: page.text ?: ""
+            activity.runOnUiThread {
+                try {
+                    val escapedContent = JSONObject.quote(content)
+                    val js = "javascript:(function() { if(BOOK && BOOK.chapters[$idx]) { BOOK.chapters[$idx].rawContent = $escapedContent; BOOK.chapters[$idx].html = processRaw(BOOK.chapters[$idx].rawContent); } invalidatePageCache(); })()"
+                    webView.evaluateJavascript(js, null)
+                    
+                    // If we just loaded the currently visible chapter, re-render to show it
+                    val reRenderJs = "javascript:(function() { if (S.chIdx === $idx) { if (S.scrollMode) { renderScrollMode(); } else { S.pages = getPagesFor($idx); renderPage('next'); } updateUI(); } })()"
+                    webView.evaluateJavascript(reRenderJs, null)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     override fun handleKeyEvent(event: KeyEvent): Boolean {

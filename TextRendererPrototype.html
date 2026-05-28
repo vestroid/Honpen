@@ -923,6 +923,7 @@ function updateScrollProgress() {
 // ═══════════════════════════════════════════════
 function go(chIdx, pgIdx, dir) {
   if (chIdx < 0 || chIdx >= BOOK.chapters.length) return;
+  const oldChIdx = S.chIdx;
   S.chIdx = chIdx;
   S.pages = getPagesFor(chIdx);
   S.pgIdx = Math.max(0, Math.min(pgIdx, S.pages.length - 1));
@@ -933,6 +934,9 @@ function go(chIdx, pgIdx, dir) {
     renderPage(dir);
   }
   updateUI();
+  if (oldChIdx !== chIdx && typeof Android !== 'undefined' && Android.onChapterChanged) {
+      Android.onChapterChanged(chIdx);
+  }
 }
 
 function nextPage() {
@@ -1487,6 +1491,9 @@ document.getElementById('content-area').addEventListener('scroll', () => {
     const p = document.getElementById('bm-path');
     p.style.fill = bm ? 'var(--accent)' : 'none';
     p.style.stroke = bm ? 'var(--accent)' : 'currentColor';
+    if (typeof Android !== 'undefined' && Android.onChapterChanged) {
+        Android.onChapterChanged(detected);
+    }
   }
   updateScrollProgress();
 });
