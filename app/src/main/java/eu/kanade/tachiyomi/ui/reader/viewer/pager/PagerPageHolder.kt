@@ -147,6 +147,7 @@ class PagerPageHolder(
     private suspend fun setImage() {
         progressIndicator?.setProgress(0)
 
+        if (page.text != null) return
         val streamFn = page.stream ?: return
 
         try {

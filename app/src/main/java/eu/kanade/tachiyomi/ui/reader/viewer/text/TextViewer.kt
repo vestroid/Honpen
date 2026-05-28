@@ -127,9 +127,10 @@ class TextViewer(val activity: ReaderActivity) : Viewer {
             put("title", currChapter.chapter.name)
             put("chapters", JSONArray().apply {
                 pages.forEachIndexed { i, page ->
+                    val chTitle = if (page.url.isNotBlank() && page.url != page.index.toString()) page.url else "Chapter ${i + 1}"
                     put(JSONObject().apply {
                         put("id", chapterId) // Keeping same chapter id for notes
-                        put("title", "Chapter ${i + 1}")
+                        put("title", chTitle)
                         put("rawContent", "")
                         if (i == 0) put("notes", notesJsonArray)
                     })

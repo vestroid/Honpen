@@ -187,6 +187,8 @@ class WebtoonPageHolder(
     private suspend fun setImage() {
         progressIndicator.setProgress(0)
 
+        val page = page
+        if (page?.text != null) return
         val streamFn = page?.stream ?: return
 
         try {

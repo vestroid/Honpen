@@ -30,6 +30,7 @@ android {
         versionName = "0.19.9"
 
         ndk {
+            abiFilters.clear()
             abiFilters.add("arm64-v8a")
         }
 

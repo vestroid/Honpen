@@ -13,9 +13,11 @@ internal class EpubPageLoader(private val reader: EpubReader) : PageLoader() {
 
     override suspend fun getPages(): List<ReaderPage> {
         val pagePaths = reader.getPagePaths()
+        val pageTitles = reader.getPageTitles()
         if (pagePaths.isNotEmpty()) {
             return pagePaths.mapIndexed { i, path ->
-                ReaderPage(index = i).apply {
+                ReaderPage(index = i, url = pageTitles.getOrElse(i) { "Chapter ${i + 1}" }).apply {
+                    text = "" // Dummy text to mark as text page and prevent image decoding
                     stream = { reader.getInputStream(path)!! }
                     status = Page.State.Ready
                 }

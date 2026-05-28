@@ -668,7 +668,9 @@ class ReaderViewModel @JvmOverloads constructor(
     fun getMangaReadingMode(resolveDefault: Boolean = true): Int {
         val default = readerPreferences.defaultReadingMode.get()
         val readingMode = ReadingMode.fromPreference(manga?.readingMode?.toInt())
+        val isEpub = state.value.viewerChapters?.currChapter?.chapter?.url?.endsWith(".epub", true) == true
         return when {
+            isEpub -> ReadingMode.TEXT.flagValue
             resolveDefault && readingMode == ReadingMode.DEFAULT -> default
             else -> manga?.readingMode?.toInt() ?: default
         }

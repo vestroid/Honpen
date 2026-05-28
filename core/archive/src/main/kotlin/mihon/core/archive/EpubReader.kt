@@ -52,6 +52,62 @@ class EpubReader(private val reader: ArchiveReader) : Closeable by reader {
     }
 
     /**
+     * Attempts to extract chapter titles for each page by parsing the TOC or returning a default.
+     */
+    fun getPageTitles(): List<String> {
+        val ref = getPackageHref()
+        val doc = getPackageDocument(ref)
+        val pages = getPagesFromDocument(doc)
+        val basePath = getParentDirectory(ref)
+        
+        val titlesMap = mutableMapOf<String, String>()
+        
+        // 1. Try NCX
+        val ncxItem = doc.select("manifest > item[media-type=application/x-dtbncx+xml]").first()
+        if (ncxItem != null) {
+            val ncxPath = resolveZipPath(basePath, ncxItem.attr("href"))
+            val ncxStream = getInputStream(ncxPath)
+            if (ncxStream != null) {
+                val ncxDoc = ncxStream.use { Jsoup.parse(it, null, "", Parser.xmlParser()) }
+                ncxDoc.select("navPoint").forEach { navPoint ->
+                    val title = navPoint.select("navLabel > text").text()
+                    val contentSrc = navPoint.select("content").attr("src").substringBefore("#")
+                    if (title.isNotBlank() && contentSrc.isNotBlank()) {
+                        val fullPath = resolveZipPath(getParentDirectory(ncxPath), contentSrc)
+                        titlesMap[fullPath] = title
+                    }
+                }
+            }
+        }
+        
+        // 2. Try Nav XHTML (EPUB3)
+        if (titlesMap.isEmpty()) {
+            val navItem = doc.select("manifest > item[properties~=nav]").first()
+            if (navItem != null) {
+                val navPath = resolveZipPath(basePath, navItem.attr("href"))
+                val navStream = getInputStream(navPath)
+                if (navStream != null) {
+                    val navDoc = navStream.use { Jsoup.parse(it, null, "") }
+                    navDoc.select("nav[epub:type=toc] a").forEach { a ->
+                        val title = a.text()
+                        val href = a.attr("href").substringBefore("#")
+                        if (title.isNotBlank() && href.isNotBlank()) {
+                            val fullPath = resolveZipPath(getParentDirectory(navPath), href)
+                            titlesMap[fullPath] = title
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Map to pages, fallback to "Chapter X"
+        return pages.mapIndexed { index, pageRef ->
+            val pagePath = resolveZipPath(basePath, pageRef)
+            titlesMap[pagePath] ?: "Chapter ${index + 1}"
+        }
+    }
+
+    /**
      * Returns the path of all the images found in the epub file.
      */
     fun getImagesFromPages(): List<String> {

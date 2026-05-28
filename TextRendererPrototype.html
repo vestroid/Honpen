@@ -119,13 +119,6 @@ mark.hl-b{background:rgba(59,130,246,.22);border-bottom:2px solid #3b82f6}
 mark.hl-g{background:rgba(34,197,94,.2);border-bottom:2px solid #22c55e}
 mark.hl-p{background:rgba(236,72,153,.2);border-bottom:2px solid #ec4899}
 
-/* ── TAP ZONES ───────────────────────────── */
-#tap-zones{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;z-index:10;pointer-events:none}
-#tap-zones.enabled{pointer-events:auto}
-.tz{height:100%;cursor:pointer}
-#tz-left,#tz-right{width:24%}
-#tz-mid{flex:1}
-
 /* ── BOTTOM BAR ──────────────────────────── */
 #bottombar{
   position:absolute;bottom:0;left:0;right:0;height:64px;
@@ -453,13 +446,6 @@ mark.hl-p{background:rgba(236,72,153,.2);border-bottom:2px solid #ec4899}
 <!-- CONTENT AREA -->
 <div id="content-area"></div>
 
-<!-- TAP ZONES -->
-<div id="tap-zones">
-  <div class="tz" id="tz-left"></div>
-  <div class="tz" id="tz-mid"></div>
-  <div class="tz" id="tz-right"></div>
-</div>
-
 <!-- SELECTION TOOLBAR -->
 <div id="sel-bar">
   <button class="hl-dot hd-y" data-hlcolor="y" title="Highlight yellow"></button>
@@ -484,7 +470,7 @@ mark.hl-p{background:rgba(236,72,153,.2);border-bottom:2px solid #ec4899}
     <button class="ch-btn" id="btn-prev-ch" title="Prev Chapter">
       <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
-    <input type="range" id="progress-slider" min="0" max="100" value="0">
+    <input type="range" id="progress-slider" min="0" max="100" value="0" dir="ltr">
     <button class="ch-btn" id="btn-next-ch" title="Next Chapter">
       <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
@@ -647,26 +633,33 @@ mark.hl-p{background:rgba(236,72,153,.2);border-bottom:2px solid #ec4899}
 // ═══════════════════════════════════════════════
 function processRaw(text) {
   if (!text || !text.trim()) return '<p>(Empty content)</p>';
+  
+  let processed = text;
 
   // Already has block HTML? sanitize lightly and use
-  if (/<(p|div|br|h[1-6])\b/i.test(text)) {
-    // Strip script/style, keep structure
-    return text
+  if (/<(p|div|br|h[1-6])\b/i.test(processed)) {
+    // Strip script/style, keep structure. Remove <a> tags to strip external links.
+    processed = processed
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
       .replace(/<(?!\/?(p|em|strong|i|b|br|h[1-6]|span)\b)[^>]+>/gi, '')
       .replace(/\n{3,}/g, '\n\n');
+  } else {
+    // Plain text: normalize line endings, split on blank lines
+    const paras = processed
+      .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      .split(/\n{2,}/)
+      .map(p => p.replace(/\n/g, ' ').trim())
+      .filter(p => p.length > 0);
+
+    if (paras.length === 0) processed = `<p>${esc(processed.trim())}</p>`;
+    else processed = paras.map(p => `<p>${esc(p)}</p>`).join('');
   }
-
-  // Plain text: normalize line endings, split on blank lines
-  const paras = text
-    .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-    .split(/\n{2,}/)
-    .map(p => p.replace(/\n/g, ' ').trim())
-    .filter(p => p.length > 0);
-
-  if (paras.length === 0) return `<p>${esc(text.trim())}</p>`;
-  return paras.map(p => `<p>${esc(p)}</p>`).join('');
+  
+  // Find footnote references like [1], [2] and make them clickable spans
+  processed = processed.replace(/\[(\d+)\]/g, '<span class="fn-link" data-fn="$1" style="color:var(--accent);cursor:pointer;font-weight:600;padding:0 2px;">[$1]</span>');
+  
+  return processed;
 }
 
 function esc(s) {
@@ -1057,7 +1050,6 @@ function setMode(scroll) {
   S.scrollMode = scroll;
   document.getElementById('mode-page').classList.toggle('active', !scroll);
   document.getElementById('mode-scroll').classList.toggle('active', scroll);
-  document.getElementById('tap-zones').classList.toggle('enabled', !scroll && S.clickControls);
 
   const area = document.getElementById('content-area');
   if (!scroll) {
@@ -1088,9 +1080,6 @@ function togSetting(key, id) {
     }
     const pb = document.querySelector('.page-body');
     if (pb) pb.className = bodyClasses();
-  }
-  if (key === 'clickControls') {
-    document.getElementById('tap-zones').classList.toggle('enabled', S.clickControls && !S.scrollMode);
   }
 }
 
@@ -1498,6 +1487,45 @@ document.getElementById('content-area').addEventListener('scroll', () => {
   updateScrollProgress();
 });
 
+// Footnote click handler
+document.getElementById('content-area').addEventListener('click', e => {
+  const fnLink = e.target.closest('.fn-link');
+  if (fnLink) {
+    e.stopPropagation(); // prevent UI toggle
+    const id = fnLink.dataset.fn;
+    const ch = BOOK.chapters[S.chIdx];
+    if (!ch) return;
+    
+    // Find footnote text in rawContent
+    const raw = ch.rawContent || '';
+    // Look for [id] or id. at the end or anywhere
+    const regex1 = new RegExp(`\\[${id}\\]([^\\n]+)`, 'g');
+    const regex2 = new RegExp(`\\n\\s*${id}\\.\\s*([^\\n]+)`, 'g');
+    
+    let match;
+    let matches = [];
+    while ((match = regex1.exec(raw)) !== null) {
+      matches.push(match[1].trim());
+    }
+    while ((match = regex2.exec(raw)) !== null) {
+      matches.push(match[1].trim());
+    }
+    
+    // Often the actual footnote is the last match
+    let fnText = matches.length > 0 ? matches[matches.length - 1] : `Footnote ${id} not found.`;
+    
+    // Show in dict-modal
+    const modal = document.getElementById('dict-modal');
+    document.getElementById('dict-word').textContent = `Footnote ${id}`;
+    document.getElementById('dict-pron').textContent = '';
+    document.getElementById('dict-body').innerHTML = `<div class="dict-def">${esc(fnText)}</div>`;
+    
+    closeAll();
+    modal.classList.add('on');
+    document.getElementById('overlay').classList.add('on');
+  }
+});
+
 // ═══════════════════════════════════════════════
 //  TOAST
 // ═══════════════════════════════════════════════
@@ -1584,12 +1612,24 @@ document.getElementById('progress-slider').addEventListener('input', function() 
   go(S.chIdx, target, target >= S.pgIdx ? 'next' : 'prev');
 });
 
-// Tap zones
-document.getElementById('tz-left').addEventListener('click', () => { if (!window.getSelection()?.toString()) prevPage(); });
-document.getElementById('tz-right').addEventListener('click', () => { if (!window.getSelection()?.toString()) nextPage(); });
-document.getElementById('tz-mid').addEventListener('click', () => {
+// Tap controls on content area
+document.getElementById('content-area').addEventListener('click', e => {
+  if (e.defaultPrevented) return;
+  if (!S.clickControls || S.scrollMode) return;
   if (window.getSelection()?.toString()) return;
-  toggleUI();
+  
+  // Ignore clicks on links or interactive elements
+  if (e.target.closest('a') || e.target.closest('.fn-link') || e.target.closest('button')) return;
+
+  const w = window.innerWidth;
+  const x = e.clientX;
+  if (x < w * 0.25) {
+    prevPage();
+  } else if (x > w * 0.75) {
+    nextPage();
+  } else {
+    toggleUI();
+  }
 });
 
 // Settings: themes
@@ -1674,7 +1714,6 @@ document.getElementById('note-input').addEventListener('input', function() {
   buildTOC();
 
   // Page mode init
-  document.getElementById('tap-zones').classList.add('enabled');
   S.pages = getPagesFor(0);
   const div = createPageDiv(S.pages[0]);
   div.classList.add('active');
