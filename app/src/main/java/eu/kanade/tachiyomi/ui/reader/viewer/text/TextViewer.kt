@@ -74,6 +74,13 @@ class TextViewer(val activity: ReaderActivity) : Viewer {
         }
 
         @JavascriptInterface
+        fun toggleMenu() {
+            activity.runOnUiThread {
+                activity.toggleMenu()
+            }
+        }
+
+        @JavascriptInterface
         fun onChapterChanged(index: Int) {
             activity.runOnUiThread {
                 loadWindow(index)

@@ -446,13 +446,6 @@ mark.hl-p{background:rgba(236,72,153,.2);border-bottom:2px solid #ec4899}
 <!-- CONTENT AREA -->
 <div id="content-area"></div>
 
-<!-- SELECTION TOOLBAR -->
-<div id="sel-bar">
-  <button class="hl-dot hd-y" data-hlcolor="y" title="Highlight yellow"></button>
-  <button class="hl-dot hd-b" data-hlcolor="b" title="Highlight blue"></button>
-  <button class="hl-dot hd-g" data-hlcolor="g" title="Highlight green"></button>
-  <button class="hl-dot hd-p" data-hlcolor="p" title="Highlight pink"></button>
-  <div class="sel-div"></div>
   <button class="sel-btn" id="sel-copy" title="Copy">
     <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
   </button>
@@ -667,42 +660,11 @@ function esc(s) {
 }
 
 // ═══════════════════════════════════════════════
-//  BOOK DATA  (Pride and Prejudice — public domain)
+//  BOOK DATA & STATE
 // ═══════════════════════════════════════════════
-// Each chapter has a rawContent string (simulating scraped text).
-// In real use, swap with actual scraped content and processRaw() handles it.
 
-const BOOK = {
-  title: "Pride and Prejudice",
-  author: "Jane Austen",
-  chapters: [
-    { title: "Chapter I",   rawContent: `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.\n\nHowever little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered as the rightful property of some one or other of their daughters.\n\n"My dear Mr. Bennet," said his lady to him one day, "have you heard that Netherfield Park is let at last?"\n\nMr. Bennet replied that he had not.\n\n"But it is," returned she; "for Mrs. Long has just been here, and she told me all about it."\n\nMr. Bennet made no answer.\n\n"Do you not want to know who has taken it?" cried his wife impatiently.\n\n"You want to tell me, and I have no objection to hearing it."\n\nThis was invitation enough.\n\n"Why, my dear, you must know, Mrs. Long says that Netherfield is taken by a young man of large fortune from the north of England; that he came down on Monday in a chaise and four to see the place, and was so much delighted with it, that he agreed with Mr. Morris immediately; that he is to take possession before Michaelmas, and some of the servants are to be in the house by the end of next week."\n\n"What is his name?"\n\n"Bingley."\n\n"Is he married or single?"\n\n"Oh! single, my dear, to be sure! A single man of large fortune; four or five thousand a year. What a fine thing for our girls!"\n\n"How so? can it affect them?"\n\n"My dear Mr. Bennet," replied his wife, "how can you be so tiresome! You must know that I am thinking of his marrying one of them."\n\n"Is that his design in settling here?"\n\n"Design! Nonsense, how can you talk so! But it is very likely that he may fall in love with one of them, and therefore you must visit him as soon as he comes."` },
-    { title: "Chapter II",  rawContent: `Mr. Bennet was among the earliest of his neighbours in calling upon Mr. Bingley. He had always intended to keep his intended visit a secret, and to the last kept his family in the dark.\n\nFor a long time after it was settled, Mr. Bennet kept silent on the matter, content to see his wife in a state of nervous expectation. It was not till the evening before the intended visit that she was at all apprised of it.\n\n"So, Lizzy," said he one evening, after the family had retired for the night, "I dare say you have heard of the goings-on at Netherfield."\n\n"Oh yes, papa! Mrs. Long has been here and told us everything — or at least everything she knows, which is perhaps not so much."\n\n"Well, you will be glad to hear that I have called upon Mr. Bingley this very morning."\n\nThe astonishment of the ladies was just what it ought to be; and the satisfaction of Mrs. Bennet, upon hearing this news, was expressed in terms as loud and as unequivocal as her joy of the preceding evening.\n\n"What a good joke it was, to be sure! that you should have gone this morning, and never said a word about it till now." "Now, Kitty, you may cough as much as you choose," said Mr. Bennet; and, as he spoke, he left the room, fatigued with the raptures of his wife.\n\n"What an excellent father you have, girls!" said she, when the door was shut. "I do not know how you will ever make him amends for his kindness; or me either, for that matter."\n\nNot all that Mrs. Bennet, however, with the assistance of her five daughters, could ask on the subject, was sufficient to draw from her husband any satisfactory description of Mr. Bingley. They attacked him in various ways; with barefaced questions, ingenious suppositions, and distant surmises; but he eluded the skill of them all.\n\nHer report was highly favourable. Sir William had been delighted with him. He was quite young, wonderfully handsome, extremely agreeable, and to crown the whole, he meant to be at the next assembly with a large party. Nothing could be more delightful! To be fond of dancing was a certain step towards falling in love; and very lively hopes of Mr. Bingley's heart were entertained.` },
-    { title: "Chapter III", rawContent: `Not all that Mrs. Bennet's entreaties could prevail on Mr. Bennet to accompany them to the ball. In the end, however, the whole party set off, and Mrs. Bennet's spirits were on the point of breaking down entirely when they arrived at Netherfield.\n\nMr. Bingley had not been of age two years when he was tempted by an accidental recommendation to look at Netherfield House. He did look at it and into it for half an hour, was pleased with the situation and the principal rooms, satisfied with what the owner said in its praise, and took it immediately.\n\nBetween him and Darcy there was a very steady friendship, in spite of great opposition of character. Bingley had never met with more pleasant people or prettier girls in his life; everybody had been most kind and attentive to him; there had been no formality, no stiffness; he had soon felt acquainted with all the room; and as to Miss Bennet, he could not conceive an angel more beautiful.\n\nDarcy, on the contrary, had seen a collection of people in whom there was little beauty and no fashion, for none of whom he had felt the smallest interest, and from none received either attention or pleasure. Miss Bennet he acknowledged to be pretty, but she smiled too much.\n\nMrs. Bennet had designed to keep the two eldest from Netherfield long enough to ensure their having some share of the pleasures of the evening; and accordingly, when the dancing recommenced after supper, she would not allow her eldest daughter to stand up with Mr. Bingley, though she had not yet had a partner.\n\nMr. Darcy danced only once with Mrs. Hurst and once with Miss Bingley, declined being introduced to any other lady, and spent the rest of the evening in walking about the room, speaking occasionally to one of his own party. His character was decided. He was the proudest, most disagreeable man in the world, and every body hoped that he would never come there again.\n\nAmongst the most violent against him was Mrs. Bennet, whose dislike of his general behaviour was sharpened into particular resentment by his having slighted one of her daughters.\n\nElizabeth Bennet had been obliged, by the scarcity of gentlemen, to sit down for two dances; and during part of that time, Mr. Darcy had been standing near enough for her to hear a conversation between him and Mr. Bingley, who came from the dance for a few minutes to press his friend to join it.\n\n"Come, Darcy," said he, "I must have you dance. I hate to see you standing about by yourself in this stupid manner. You had much better dance."\n\n"I certainly shall not. You know how I detest it, unless I am particularly acquainted with my partner. At such an assembly as this, it would be insupportable. Your sisters are engaged, and there is not another woman in the room whom it would not be a punishment to me to stand up with."\n\n"I would not be so fastidious as you are," cried Bingley, "for a kingdom! Upon my honour, I never met with so many pleasant girls in my life, as I have this evening; and there are several of them you see uncommonly pretty."\n\n"You are dancing with the only handsome girl in the room," said Mr. Darcy, looking at the eldest Miss Bennet.\n\n"Oh! she is the most beautiful creature I ever beheld! But there is one of her sisters sitting down just behind you, who is very pretty, and I dare say, very agreeable. Do let me ask my partner to introduce you."\n\n"Which do you mean?" and turning round, he looked for a moment at Elizabeth, till catching her eye, he withdrew his own and coldly said, "She is tolerable; but not handsome enough to tempt me; and I am in no humour at present to give consequence to young ladies who are slighted by other men."` },
-    { title: "Chapter IV",  rawContent: `When Jane and Elizabeth were alone, the former, who had been cautious in her praise of Mr. Bingley before, expressed to her sister just how very much she admired him.\n\n"He is just what a young man ought to be," said she, "sensible, good-humoured, lively; and I never saw such happy manners! — so much ease, with such perfect good breeding!"\n\n"He is also handsome," replied Elizabeth, "which a young man ought likewise to be, if he possibly can. His character is thereby complete."\n\n"I was very much flattered by his asking me to dance a second time. I did not expect such a compliment."\n\n"Did not you? I did for you. But that is one great difference between us. Compliments always take you by surprise, and me never. What could be more natural than his asking you again? He could not help seeing that you were about five times as pretty as every other woman in the room."\n\n"Oh! you are a great deal too apt to like people in general. You never see a fault in any body. All the world are good and agreeable in your eyes. I never heard you speak ill of a human being in your life."\n\n"I would not wish to be hasty in censuring any one; but I always speak what I think."\n\n"I know you do; and it is that which makes the wonder. With your good sense, to be so honestly blind to the follies and nonsense of others! Affectation of candour is common enough — one meets it every where. But to be candid without ostentation or design — to take the good of every body's character and make it still better, and say nothing of the bad — belongs to you alone."\n\n"Dear Lizzy!"\n\n"Oh! you are a great deal too apt, you know, to like people in general. You never see a fault in any body. All the world are good and agreeable in your eyes."\n\nJane had met Mr. Bingley before; but Elizabeth could only say that he was not yet of sufficient acquaintance for so decisive a judgement. She had heard rather more of Darcy than she was disposed to approve, and yet, she could not help but feel a strange, nagging curiosity about the man — proud, cold, and impossibly tall as he seemed to be, standing sentinel-like against the far wall while the rest of the room danced and laughed around him.` }
-  ]
-};
-
-// Process all chapters
-BOOK.chapters.forEach(ch => { ch.html = processRaw(ch.rawContent); });
-
-// ═══════════════════════════════════════════════
-//  SEEDED SOCIAL COMMENTS
-// ═══════════════════════════════════════════════
-const SEED_COMMENTS = [
-  { id:1, user:'thea_reads',    col:'#e74c3c', chIdx:0, text:'The opening line is iconic. One of the best in English literature — sets the satirical tone immediately.', likes:47, dislikes:2, liked:false, disliked:false, time:'3d', replies:[
-    { id:11, user:'danbooks',   col:'#3b82f6', text:'Completely agree. Austen is essentially mocking the entire neighbourhood in one sentence.', likes:13, time:'2d' },
-    { id:12, user:'paperback99',col:'#22c55e', text:'It\'s even better because it\'s technically about men being in want of wives, not the other way around!', likes:8, time:'1d' }
-  ]},
-  { id:2, user:'velvet_pages',  col:'#8b5cf6', chIdx:0, text:'Mr. Bennet\'s dry wit in this chapter is just 😭. He knew about Bingley the whole time and just let Mrs. Bennet spiral.', likes:31, dislikes:0, liked:false, disliked:false, time:'2d', replies:[] },
-  { id:3, user:'midnight_lit',  col:'#f59e0b', chIdx:1, text:'This chapter really shows how much Mr. Bennet secretly cares for his daughters despite his detachment. He DID go to visit Bingley!', likes:22, dislikes:1, liked:false, disliked:false, time:'5d', replies:[
-    { id:31, user:'thea_reads', col:'#e74c3c', text:'Absolutely. He just refuses to be earnest about it.', likes:7, time:'4d' }
-  ]},
-  { id:4, user:'danbooks',      col:'#3b82f6', chIdx:2, text:'"She is tolerable; but not handsome enough to tempt me" — peak Darcy. The audacity of this man lmao', likes:63, dislikes:3, liked:false, disliked:false, time:'1d', replies:[
-    { id:41, user:'velvet_pages',col:'#8b5cf6', text:'And then he fell absolutely in love with her. The irony.', likes:29, time:'20h' }
-  ]},
-  { id:5, user:'paperback99',   col:'#22c55e', chIdx:3, text:'Jane is too good for this world. Elizabeth sees it, Bingley sees it, everyone sees it except Mrs. Bennet who just sees a good match.', likes:18, dislikes:0, liked:false, disliked:false, time:'6h', replies:[] },
-];
+let BOOK = { chapters: [] };
+let NOTES = [];
 
 // ═══════════════════════════════════════════════
 //  STATE
@@ -977,9 +939,13 @@ function updateUI() {
 }
 
 function toggleUI() {
-  S.uiVisible = !S.uiVisible;
-  document.getElementById('topbar').classList.toggle('hidden', !S.uiVisible);
-  document.getElementById('bottombar').classList.toggle('hidden', !S.uiVisible);
+  if (typeof Android !== 'undefined' && Android.toggleMenu) {
+      Android.toggleMenu();
+  } else {
+      S.uiVisible = !S.uiVisible;
+      document.getElementById('topbar').classList.toggle('hidden', !S.uiVisible);
+      document.getElementById('bottombar').classList.toggle('hidden', !S.uiVisible);
+  }
 }
 
 function showUI() {
@@ -1080,154 +1046,6 @@ function togSetting(key, id) {
     }
     const pb = document.querySelector('.page-body');
     if (pb) pb.className = bodyClasses();
-  }
-}
-
-// ═══════════════════════════════════════════════
-//  SELECTION TOOLBAR
-// ═══════════════════════════════════════════════
-let selBarTimeout;
-
-function positionSelBar(rect) {
-  const bar = document.getElementById('sel-bar');
-  const reader = document.getElementById('reader');
-  const rRect = reader.getBoundingClientRect();
-  const bw = bar.offsetWidth || 220;
-
-  let top = rect.top - rRect.top - 46;
-  let left = rect.left - rRect.left + rect.width / 2 - bw / 2;
-  left = Math.max(8, Math.min(left, rRect.width - bw - 8));
-  if (top < 60) top = rect.bottom - rRect.top + 8;
-
-  bar.style.top = top + 'px';
-  bar.style.left = left + 'px';
-}
-
-function showSelBar(rect) {
-  clearTimeout(selBarTimeout);
-  positionSelBar(rect);
-  document.getElementById('sel-bar').classList.add('on');
-}
-
-function hideSelBar() {
-  document.getElementById('sel-bar').classList.remove('on');
-  S.selText = '';
-  S.selSavedRange = null;
-}
-
-function saveSelection() {
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
-    S.selSavedRange = sel.getRangeAt(0).cloneRange();
-    S.selText = sel.toString().trim();
-  }
-}
-
-function restoreSelection() {
-  if (!S.selSavedRange) return;
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(S.selSavedRange);
-}
-
-document.addEventListener('selectionchange', () => {
-  clearTimeout(selBarTimeout);
-  selBarTimeout = setTimeout(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideSelBar(); return; }
-    const txt = sel.toString().trim();
-    if (txt.length < 1) { hideSelBar(); return; }
-    S.selText = txt;
-    const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    showSelBar(rect);
-  }, 120);
-});
-
-function applyHighlight(color) {
-  saveSelection();
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed) return;
-  const range = sel.getRangeAt(0);
-  const text = sel.toString().trim();
-
-  const mark = document.createElement('mark');
-  mark.className = `hl hl-${color}`;
-  const hid = Date.now();
-  mark.dataset.hid = hid;
-
-  try {
-    range.surroundContents(mark);
-  } catch(e) {
-    // Cross-element: extract and wrap
-    try {
-      const frag = range.extractContents();
-      mark.appendChild(frag);
-      range.insertNode(mark);
-    } catch(e2) {}
-  }
-
-  sel.removeAllRanges();
-  S.highlights.push({ id: hid, key: pageKey(), ch: chTitle(), pg: S.pgIdx+1, text, color, note:'', ts: Date.now() });
-  hideSelBar();
-  toast('Highlighted');
-}
-
-function copySelection() {
-  if (!S.selText) return;
-  navigator.clipboard && navigator.clipboard.writeText(S.selText);
-  hideSelBar();
-  toast('Copied');
-}
-
-function addNoteFromSelection() {
-  saveSelection();
-  S.pendingNote = true;
-  hideSelBar();
-  // Open notes panel on notes tab
-  document.getElementById('notes-panel').classList.add('open');
-  document.getElementById('overlay').classList.add('on');
-  document.getElementById('note-write').style.display = 'flex';
-  document.getElementById('note-input').focus();
-  switchNotesTab('notes');
-}
-
-async function dictLookup() {
-  const word = S.selText.trim().split(/\s+/)[0];
-  if (!word) return;
-  hideSelBar();
-  window.getSelection().removeAllRanges();
-
-  const modal = document.getElementById('dict-modal');
-  document.getElementById('dict-word').textContent = word;
-  document.getElementById('dict-pron').textContent = '';
-  document.getElementById('dict-body').innerHTML = '<div class="dict-loading">Looking up…</div>';
-  modal.classList.add('on');
-  document.getElementById('overlay').classList.add('on');
-
-  try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    const entry = data[0];
-    const pron = entry.phonetics?.find(p => p.text)?.text || '';
-    document.getElementById('dict-pron').textContent = pron;
-
-    let html = '';
-    const maxMeanings = Math.min(entry.meanings?.length || 0, 3);
-    for (let i = 0; i < maxMeanings; i++) {
-      const m = entry.meanings[i];
-      html += `<div class="dict-pos">${m.partOfSpeech}</div>`;
-      const defs = m.definitions.slice(0, 2);
-      defs.forEach((d,j) => {
-        html += `<div class="dict-def">${j+1}. ${d.definition}`;
-        if (d.example) html += `<br><span>"${d.example}"</span>`;
-        html += `</div>`;
-      });
-    }
-    document.getElementById('dict-body').innerHTML = html || '<div class="dict-err">No definitions found.</div>';
-  } catch(e) {
-    document.getElementById('dict-body').innerHTML = '<div class="dict-err">Could not fetch definition.<br>Check your connection.</div>';
   }
 }
 
@@ -1498,20 +1316,22 @@ document.getElementById('content-area').addEventListener('click', e => {
     
     // Find footnote text in rawContent
     const raw = ch.rawContent || '';
-    // Look for [id] or id. at the end or anywhere
-    const regex1 = new RegExp(`\\[${id}\\]([^\\n]+)`, 'g');
-    const regex2 = new RegExp(`\\n\\s*${id}\\.\\s*([^\\n]+)`, 'g');
+    // Strip HTML tags for cleaner matching and normalize whitespace
+    const plain = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    // Match [id] or id. followed by anything that is NOT another [
+    const regex1 = new RegExp(`\\[${id}\\]([^\\[]+)`, 'g');
+    const regex2 = new RegExp(`\\s+${id}\\.\\s+([^\\[]+)`, 'g');
     
     let match;
     let matches = [];
-    while ((match = regex1.exec(raw)) !== null) {
+    while ((match = regex1.exec(plain)) !== null) {
       matches.push(match[1].trim());
     }
-    while ((match = regex2.exec(raw)) !== null) {
+    while ((match = regex2.exec(plain)) !== null) {
       matches.push(match[1].trim());
     }
     
-    // Often the actual footnote is the last match
+    // Usually the footnote is the LAST match in the chapter, because the FIRST match is the footnote reference itself in the text.
     let fnText = matches.length > 0 ? matches[matches.length - 1] : `Footnote ${id} not found.`;
     
     // Show in dict-modal
@@ -1663,50 +1483,6 @@ document.getElementById('tog-hyph').addEventListener('click',     () => togSetti
 document.getElementById('tog-dropcap').addEventListener('click',  () => togSetting('dropCap','tog-dropcap'));
 document.getElementById('tog-controls').addEventListener('click', () => togSetting('clickControls','tog-controls'));
 
-// Selection toolbar
-document.querySelectorAll('[data-hlcolor]').forEach(b =>
-  b.addEventListener('click', () => applyHighlight(b.dataset.hlcolor)));
-document.getElementById('sel-copy').addEventListener('click', copySelection);
-document.getElementById('sel-note').addEventListener('click', addNoteFromSelection);
-document.getElementById('sel-dict').addEventListener('click', dictLookup);
-
-// Social comments
-document.getElementById('ctab-all').addEventListener('click', () => {
-  S.socialFilter='all';
-  document.getElementById('ctab-all').classList.add('active');
-  document.getElementById('ctab-ch').classList.remove('active');
-  renderSocial();
-});
-document.getElementById('ctab-ch').addEventListener('click', () => {
-  S.socialFilter='ch';
-  document.getElementById('ctab-ch').classList.add('active');
-  document.getElementById('ctab-all').classList.remove('active');
-  renderSocial();
-});
-document.getElementById('social-send').addEventListener('click', () => {
-  const inp = document.getElementById('social-input');
-  postComment(inp.value);
-  inp.value = '';
-  inp.style.height = '';
-});
-document.getElementById('social-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('social-send').click(); }
-});
-document.getElementById('social-input').addEventListener('input', function() {
-  this.style.height = ''; this.style.height = Math.min(this.scrollHeight,90)+'px';
-});
-
-// Notes
-document.getElementById('ntab-notes').addEventListener('click', () => switchNotesTab('notes'));
-document.getElementById('ntab-hl').addEventListener('click',    () => switchNotesTab('hl'));
-document.getElementById('note-send').addEventListener('click',  submitNote);
-document.getElementById('note-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitNote(); }
-});
-document.getElementById('note-input').addEventListener('input', function() {
-  this.style.height = ''; this.style.height = Math.min(this.scrollHeight,90)+'px';
-});
-
 // ═══════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════
@@ -1720,8 +1496,6 @@ document.getElementById('note-input').addEventListener('input', function() {
   document.getElementById('content-area').appendChild(div);
 
   updateUI();
-  renderSocial();
-  renderNotes();
 })();
 </script>
 </body>
