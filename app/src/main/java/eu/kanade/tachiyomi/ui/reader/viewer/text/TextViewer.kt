@@ -21,6 +21,7 @@ import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -106,44 +107,50 @@ class TextViewer(val activity: ReaderActivity) : Viewer {
         loadedChapterIndices.clear()
 
         val chapterId = currChapter.chapter.id ?: 0L
-        val notes = database.notesQueries.getNotesByChapterId(chapterId).executeAsList()
         
-        val notesJsonArray = JSONArray()
-        for (note in notes) {
-            notesJsonArray.put(JSONObject().apply {
-                put("id", note._id)
-                put("chapterId", note.chapter_id)
-                put("pageIndex", note.page_index)
-                put("selectedText", note.selected_text)
-                put("noteText", note.note_text)
-                put("color", note.color)
-                put("createdAt", note.created_at)
-            })
-        }
+        scope.launch {
+            val notes = database.notesQueries.getNotesByChapterId(chapterId).awaitAsList()
+            
+            val notesJsonArray = JSONArray()
+            for (note in notes) {
+                notesJsonArray.put(JSONObject().apply {
+                    put("id", note._id)
+                    put("chapterId", note.chapter_id)
+                    put("pageIndex", note.page_index)
+                    put("selectedText", note.selected_text)
+                    put("noteText", note.note_text)
+                    put("color", note.color)
+                    put("createdAt", note.created_at)
+                })
+            }
 
-        val jsBook = JSONObject().apply {
-            put("title", currChapter.chapter.name)
-            put("chapters", JSONArray().apply {
-                pages.forEachIndexed { i, page ->
-                    val chTitle = if (page.url.isNotBlank() && page.url != page.index.toString()) page.url else "Chapter ${i + 1}"
-                    put(JSONObject().apply {
-                        put("id", chapterId) // Keeping same chapter id for notes
-                        put("title", chTitle)
-                        put("rawContent", "")
-                        if (i == 0) put("notes", notesJsonArray)
-                    })
-                }
-            })
+            val jsBook = JSONObject().apply {
+                put("title", currChapter.chapter.name)
+                put("chapters", JSONArray().apply {
+                    pages.forEachIndexed { i, page ->
+                        val chTitle = if (page.url.isNotBlank() && page.url != page.index.toString()) page.url else "Chapter ${i + 1}"
+                        put(JSONObject().apply {
+                            put("id", chapterId) // Keeping same chapter id for notes
+                            put("title", chTitle)
+                            put("rawContent", "")
+                            if (i == 0) put("notes", notesJsonArray)
+                        })
+                    }
+                })
+            }
+            
+            val js = "javascript:(function() { " +
+                     "  BOOK = ${jsBook.toString()}; " +
+                     "  if (typeof NOTES !== 'undefined' && BOOK.chapters.length > 0) { NOTES = BOOK.chapters[0].notes || []; } " +
+                     "  invalidatePageCache(); " +
+                     "  if (!S.scrollMode) { S.pages = getPagesFor(0); renderPage('next'); updateUI(); } " +
+                     "  else { setMode(true); } " +
+                     "})()"
+                     
+            activity.runOnUiThread {
+                webView.evaluateJavascript(js, null)
+            }
         }
-        
-        val js = "javascript:(function() { " +
-                 "  BOOK = ${jsBook.toString()}; " +
-                 "  if (typeof NOTES !== 'undefined' && BOOK.chapters.length > 0) { NOTES = BOOK.chapters[0].notes || []; } " +
-                 "  invalidatePageCache(); " +
-                 "  if (!S.scrollMode) { S.pages = getPagesFor(0); renderPage('next'); updateUI(); } " +
-                 "  else { setMode(true); } " +
-                 "})()"
-        webView.evaluateJavascript(js, null)
     }
 
     override fun moveToPage(page: ReaderPage) {
