@@ -29,11 +29,6 @@ android {
         versionCode = 22
         versionName = "0.19.9"
 
-        ndk {
-            abiFilters.clear()
-            abiFilters.add("arm64-v8a")
-        }
-
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getLatestCommitSha()}\"")
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLatestCommitTime = false)}\"")
