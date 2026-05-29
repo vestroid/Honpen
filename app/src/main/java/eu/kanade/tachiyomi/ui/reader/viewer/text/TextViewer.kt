@@ -81,14 +81,12 @@ class TextViewer(val activity: ReaderActivity) : Viewer {
     }
 
     init {
-        // Load the HTML prototype from the project root. In a real app it would be in assets.
-        val prototypeFile = File(activity.filesDir.parentFile?.parentFile?.parentFile, "TextRendererPrototype.html")
-        if (prototypeFile.exists()) {
-            val content = prototypeFile.readText()
-            webView.loadDataWithBaseURL("file://", content, "text/html", "UTF-8", null)
-        } else {
-            // Fallback if not found locally
-            webView.loadData("<html><body>Prototype not found at ${prototypeFile.absolutePath}</body></html>", "text/html", "UTF-8")
+        try {
+            val content = activity.assets.open("TextRendererPrototype.html").bufferedReader().use { it.readText() }
+            webView.loadDataWithBaseURL("file:///android_asset/", content, "text/html", "UTF-8", null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            webView.loadData("<html><body>Prototype not found in assets.</body></html>", "text/html", "UTF-8")
         }
     }
 
